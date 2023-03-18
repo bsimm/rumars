@@ -15,8 +15,9 @@ module RuMARS
       address = start_address
       @instructions.each do |instruction|
         instruction_copy = instruction.deep_copy
-        instruction.pid = pid
+        instruction_copy.pid = pid
         memory_core.store(address, instruction_copy)
+        address += 1
       end
     end
   end

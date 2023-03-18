@@ -7,6 +7,8 @@ require_relative 'instruction'
 
 # REDCODE 94 Syntax definition
 #
+# Taken from http://www.koth.org/info/icws94.html
+#
 # assembly_file:
 #         list
 # list:
@@ -63,7 +65,7 @@ module RuMARS
   # REDCODE parser
   class Parser
     # This class handles all parsing errors.
-    class Error < RuntimeError
+    class ParseError < RuntimeError
       def initialize(parser, message)
         super()
         @parser = parser
@@ -103,6 +105,7 @@ module RuMARS
     private
 
     def scan(regexp)
+      # puts "Scanning '#{@scanner.string[@scanner.pos..]} with #{regexp}"
       @scanner.scan(regexp)
     end
 
@@ -110,7 +113,11 @@ module RuMARS
     # Terminal Tokens
     #
     def space
-      scan(/\s/) || ''
+      scan(/\s*/) || ''
+    end
+
+    def eol
+      scan(/\r/)
     end
 
     def semicolon
@@ -125,12 +132,12 @@ module RuMARS
       scan(/[+-]/)
     end
 
-    def anything
-      scan(/.*/)
+    def anything_but_eol
+      scan(/[^\r]/)
     end
 
     def opcode
-      scan(/(DAT|MOV)/)
+      scan(/(DAT|MOV|ADD|JMP)/)
     end
 
     def mode
@@ -138,7 +145,7 @@ module RuMARS
     end
 
     def modifier
-      scan(/\.(A|B|AB|BA|F|X|I)/)
+      scan(/\.(AB|BA|A|B|F|X|I)/)
     end
 
     def number
@@ -149,28 +156,35 @@ module RuMARS
     # Grammar
     #
     def comment_or_instruction
-      comment || instruction
+      (comment || (ins = instruction)) && eol
+
+      ins
     end
 
     def comment
-      semicolon && anything
+      semicolon && anything_but_eol
     end
 
     def instruction
-      (opc = opcode) && (mod = optional_modifier) && space && (e1 = expression) && space && (e2 = optional_expression) && space
+      space && (opc = opcode) && (mod = optional_modifier[1..]) && space && (e1 = expression) &&
+        space && (e2 = optional_expression) && space
+
+      raise ParseError.new(self, 'Uknown instruction') unless opc
+
+      raise ParseError.new(self, "Instruction #{opc} must have an A-operand") unless e1
+
+      # The default B-operand is an immediate value of 0
+      e2 ||= Operand.new('#', 0)
+      mod = default_modifier(opc, e1, e2) if mod == ''
       Instruction.new(0, opc, mod, e1, e2)
     end
 
     def optional_modifier
-      modifier || 'F'
+      modifier || '.'
     end
 
     def optional_expression
-      ex = nil
-      (c = comma) && space && (ex = expression)
-      raise Error.new(self, 'Comma missing') unless c
-
-      ex
+      comma && space && expression
     end
 
     def expression
@@ -180,6 +194,33 @@ module RuMARS
     def signed_number
       (sign = sign_prefix) && (n = number)
       sign == '-' ? -n : n
+    end
+
+    #
+    # Utility methods
+    #
+    def default_modifier(opc, e1, e2)
+      case opc
+      when 'DAT'
+        return 'F' if '#$@<>'.include?(e1.address_mode) && '#$@<>'.include?(e2.address_mode)
+      when 'MOV', 'CMP'
+        return 'AB' if e1.address_mode == '#' && '#$@<>'.include?(e2.address_mode)
+        return 'B' if '$@<>'.include?(e1.address_mode) && e2.address_mode == '#'
+        return 'I' if '$@<>'.include?(e1.address_mode) && '$@<>'.include?(e2.address_mode)
+      when 'ADD', 'SUB', 'MUL', 'DIV', 'MOD'
+        return 'AB' if e1.address_mode == '#' && '#$@<>'.include?(e2.address_mode)
+        return 'B' if '$@<>'.include?(e1.address_mode) && e2.address_mode == '#'
+        return 'F' if '$@<>'.include?(e1.address_mode) && '$@<>'.include?(e2.address_mode)
+      when 'SLT'
+        return 'AB' if e1.address_mode == '#' && '#$@<>'.include?(e2.address_mode)
+        return 'B' if '$@<>'.include?(e1.address_mode) && '#$@<>'.include?(e2.address_mode)
+      when 'JMP', 'JMZ', 'JMN', 'DJN', 'SPL'
+        return 'B' if '#$@<>'.include?(e1.address_mode) && '#$@<>'.include?(e2.address_mode)
+      else
+        raise ParseError.new(self, "Unknown instruction #{opc}")
+      end
+
+      raise ParseError.new(self, "Cannot determine default modifier for #{opc} #{e1}, #{e2}")
     end
   end
 end

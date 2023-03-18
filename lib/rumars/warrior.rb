@@ -25,8 +25,27 @@ module RuMARS
       @program = Parser.new.parse(program)
     end
 
+    def parse_file(file_name)
+      begin
+        file = File.read(file_name)
+      rescue IOError
+        puts "Cannot open file #{file_name}"
+        return false
+      end
+
+      begin
+        parse(file)
+        puts "File #{file_name} loaded"
+      rescue Parser::ParseError => e
+        puts e
+        return false
+      end
+
+      true
+    end
+
     def load_program(start_address, memory_core)
-      raise RuntimeError, 'No program available for loading' unless @program
+      raise 'No program available for loading' unless @program
 
       @program.load(start_address, memory_core, @pid)
     end
