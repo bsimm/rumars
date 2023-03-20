@@ -4,6 +4,7 @@ require 'strscan'
 
 require_relative 'program'
 require_relative 'instruction'
+require_relative 'expression'
 
 # REDCODE 94 Syntax definition
 #
@@ -85,27 +86,47 @@ module RuMARS
       @line_no = 0
       @file_name = nil
       @scanner = nil
+      # Hash to store the EQU definitions
+      @constants = {}
     end
 
     def parse(source_code)
-      program = Program.new
+      @program = Program.new
 
       @line_no = 1
+      @ignore_lines = true
       source_code.lines.each do |line|
-        @scanner = StringScanner.new(line)
-        c_or_i = comment_or_instruction
-        program.append_instruction(c_or_i) if c_or_i.is_a?(Instruction)
+        # Redcode files require a line that reads
+        # ;redcode-94
+        # All lines before this line will be ignored.
+        @ignore_lines = false if /\A;redcode-94\s\z/ =~ line
 
         @line_no += 1
+
+        # Ignore empty lines
+        next if @ignore_lines || /\A\s*\z/ =~ line
+
+        @constants.each do |name, text|
+          line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)
+        end
+
+        @scanner = StringScanner.new(line)
+        comment_or_instruction
       end
 
-      program
+      begin
+        @program.evaluate_expressions
+      rescue Expression::ExpressionError => e
+        raise ParseError.new(self, "Error in expression: #{e.message}")
+      end
+
+      @program
     end
 
     private
 
     def scan(regexp)
-      # puts "Scanning '#{@scanner.string[@scanner.pos..]} with #{regexp}"
+      # puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
       @scanner.scan(regexp)
     end
 
@@ -128,6 +149,18 @@ module RuMARS
       scan(/,/)
     end
 
+    def operator
+      scan(/[-+*\\%]/)
+    end
+
+    def open_parenthesis
+      scan(/\(/)
+    end
+
+    def close_parenthesis
+      scan(/\)/)
+    end
+
     def sign_prefix
       scan(/[+-]/)
     end
@@ -136,8 +169,28 @@ module RuMARS
       scan(/[^\r]/)
     end
 
+    def label
+      scan(/[A-Za-z_][A-Za-z0-9]*/)
+    end
+
+    def equ
+      scan(/EQU/i)
+    end
+
+    def end_token
+      scan(/END/i)
+    end
+
+    def org
+      scan(/ORG/i)
+    end
+
+    def not_comment
+      scan(/[^;\n]+/)
+    end
+
     def opcode
-      scan(/(DAT|MOV|ADD|JMP)/)
+      scan(/(ADD|CMP|DAT|DIV|DJN|JMN|JMP|JMZ|MOD|MOV|MUL|SLT|SPL|SUB)/i)
     end
 
     def mode
@@ -145,38 +198,89 @@ module RuMARS
     end
 
     def modifier
-      scan(/\.(AB|BA|A|B|F|X|I)/)
+      scan(/\.(AB|BA|A|B|F|X|I)/i)
     end
 
-    def number
-      scan(/[0-9]+/).to_i
+    def whole_number
+      scan(/[0-9]+/)
     end
 
     #
     # Grammar
     #
     def comment_or_instruction
-      (comment || (ins = instruction)) && eol
-
-      ins
+      (comment || instruction_line) && eol
     end
 
     def comment
       semicolon && anything_but_eol
     end
 
-    def instruction
-      space && (opc = opcode) && (mod = optional_modifier[1..]) && space && (e1 = expression) &&
-        space && (e2 = optional_expression) && space
+    def instruction_line
+      (label = optional_label) && space && pseudo_or_instruction(label) && space && optional_comment
+    end
+
+    def pseudo_or_instruction(label)
+      equ_instruction(label) || end_instruction || org_instruction || instruction(label)
+    end
+
+    def equ_instruction(label)
+      (e = equ) && space && (definition = not_comment)
+
+      return nil unless e
+
+      raise ParseError.new(self, 'EQU lines must have a label') if label.empty?
+
+      raise ParseError.new(self, "Constant #{label} has already been defined") if @constants.include?(label)
+
+      @constants[label] = definition
+    end
+
+    def org_instruction
+      (o = org) && space && (exp = expr)
+
+      return nil unless o
+
+      raise ParseError.new(self, 'Expression expected') unless exp
+
+      @program.start_address = exp
+    end
+
+    def end_instruction
+      (e = end_token) && space && (exp = expr)
+
+      return nil unless e
+
+      # Older Redcode standards used the END instruction to set the program start address
+      @program.start_address = exp if exp
+
+      @ignore_lines = true
+    end
+
+    def instruction(label)
+      (opc = opcode) && (mod = optional_modifier[1..]) &&
+        space && (e1 = expression) && space && (e2 = optional_expression) && space && optional_comment
 
       raise ParseError.new(self, 'Uknown instruction') unless opc
+      # Redcode instructions are case-insensitive. We use upper case internally,
+      # but allow for lower-case notation in source files.
+      opc.upcase!
+      mod.upcase!
 
       raise ParseError.new(self, "Instruction #{opc} must have an A-operand") unless e1
 
+      @program.add_label(label) unless label.empty?
+
       # The default B-operand is an immediate value of 0
-      e2 ||= Operand.new('#', 0)
+      e2 ||= Operand.new('#', Expression.new(0, nil, nil))
       mod = default_modifier(opc, e1, e2) if mod == ''
-      Instruction.new(0, opc, mod, e1, e2)
+
+      instruction = Instruction.new(0, opc, mod, e1, e2)
+      @program.append_instruction(instruction)
+    end
+
+    def optional_label
+      label || ''
     end
 
     def optional_modifier
@@ -188,12 +292,61 @@ module RuMARS
     end
 
     def expression
-      Operand.new(mode, signed_number || number)
+      (m = mode) && (e = expr)
+      raise ParseError.new(self, 'Expression expected') unless e
+
+      Operand.new(m, e)
+    end
+
+    def expr
+      (t1 = term) && space && (optr = operator) && space && (t2 = expr)
+
+      if optr
+        raise ParseError.new(self, 'Right hand side of expression is missing') unless t2
+
+        Expression.new(t1, optr, t2)
+      else
+        t1
+      end
+    end
+
+    def term
+      t = (label || number || parenthesized_expression)
+
+      return nil unless t
+
+      Expression.new(t, nil, nil)
+    end
+
+    def parenthesized_expression
+      (op = open_parenthesis) && space && (e = expr) && space && (cp = close_parenthesis)
+
+      return nil unless op
+
+      raise ParseError.new(self, 'Expression expected') unless e
+
+      raise ParseError.new(self, "')' expected") unless cp
+
+      e
+    end
+
+    def number
+      (s = signed_number) || (n = whole_number)
+
+      return s if s
+
+      n ? n.to_i : nil
     end
 
     def signed_number
-      (sign = sign_prefix) && (n = number)
-      sign == '-' ? -n : n
+      (sign = sign_prefix) && (n = whole_number)
+      return nil unless sign
+
+      sign == '-' ? -(n.to_i) : n.to_i
+    end
+
+    def optional_comment
+      comment || ''
     end
 
     #
@@ -201,6 +354,8 @@ module RuMARS
     #
     def default_modifier(opc, e1, e2)
       case opc
+      when 'ORG', 'END'
+        return ''
       when 'DAT'
         return 'F' if '#$@<>'.include?(e1.address_mode) && '#$@<>'.include?(e2.address_mode)
       when 'MOV', 'CMP'

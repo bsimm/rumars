@@ -14,7 +14,7 @@ module RuMARS
       @size = size
       @instructions = []
       size.times do |address|
-        @instructions[address] = Instruction.new(0, 'DAT', 'F', Operand.new('#', 0), Operand.new('#', 0))
+        store(address, Instruction.new(0, 'DAT', 'F', Operand.new('#', 0), Operand.new('#', 0)))
       end
     end
 
@@ -27,18 +27,29 @@ module RuMARS
     def store(address, instruction)
       raise ArgumentError, "address #{address} out of range" if address < -@size
 
-      @instructions[(@size + address) % @size] = instruction
+      core_address = (@size + address) % @size
+      instruction.address = core_address
+      @instructions[core_address] = instruction
+    end
+
+    def list(program_counters, current_warrior, start_address = 0, length = 10)
+      length.times do |i|
+        address = start_address + i
+        puts "#{'%04X' % address} #{'%-8s' % current_warrior.resolve_address(address)} #{program_counters.include?(address) ? '>' : ' '} #{@instructions[address]}"
+      end
     end
 
     def load_relative(program_counter, address)
-      instruction = load(program_counter + address)
-      puts "Loading #{instruction} from #{program_counter + address}"
+      core_address = (@size + program_counter + address) % @size
+      instruction = load(core_address)
+      puts "Loading #{'%04d' % core_address}: #{instruction}"
       instruction
     end
 
     def store_relative(program_counter, address, instruction)
-      puts "Storing #{instruction} to #{program_counter + address}"
-      store(program_counter + address, instruction)
+      core_address = (@size + program_counter + address) % @size
+      puts "Storing #{'%04d' % core_address}: #{instruction}"
+      store(core_address, instruction)
     end
 
     def rel_to_abs_addr(program_counter, address)

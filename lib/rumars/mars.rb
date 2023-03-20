@@ -9,13 +9,22 @@ module RuMARS
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
-    def initialize
+    def initialize(argv)
       @memory_core = MemoryCore.new(800)
       @scheduler = Scheduler.new(@memory_core)
+      # Certain commands like 'list' focus on a certain warrior. By default,
+      # it is the more recently loaded warrior. Use the 'focus' command to
+      # change the current warrior.
+      @current_warrior = nil
+
+      # Load all the Redcode files passed via the command line.
+      argv.each do |file|
+        load_warrior(file) if file[0] != '-' && file[-4..] == '.red'
+      end
     end
 
-    def add_warrior(warrior, start_address = 0)
-      @scheduler.add_warrior(warrior, start_address)
+    def add_warrior(warrior, base_address = 0)
+      @scheduler.add_warrior(warrior, base_address)
     end
 
     def run(max_cycles = 800)
@@ -25,7 +34,7 @@ module RuMARS
     def repl
       loop do
         print 'MARS>> '
-        command = gets.chomp
+        command = $stdin.gets.chomp
 
         break unless execute(command)
       end
@@ -45,6 +54,11 @@ module RuMARS
         @memory_core.dump
       when 'exit', 'ex'
         return false
+      when 'focus', 'fo'
+        change_current_warrior(args.first&.to_i)
+      when 'list', 'li'
+        @memory_core.list(@scheduler.program_counters, @current_warrior,
+                          *args.map(&:to_i))
       when 'load', 'lo'
         load_warriors(args)
       when 'step', 'st'
@@ -65,10 +79,25 @@ module RuMARS
       end
 
       files.each do |file|
-        warrior = Warrior.new("Player #{@scheduler.warrior_count}")
-        warrior.parse_file(file)
-        @scheduler.add_warrior(warrior, 1)
+        load_warrior(file)
       end
+    end
+
+    def load_warrior(file)
+      warrior = Warrior.new("Player #{@scheduler.warrior_count}")
+      warrior.parse_file(file)
+      @scheduler.add_warrior(warrior)
+      @current_warrior = warrior
+
+      warrior
+    end
+
+    def change_current_warrior(index)
+      unless (warrior = @scheduler.get_warrior_by_index(index))
+        puts "Unknown warrior #{index}"
+      end
+
+      @current_warrior = warrior
     end
   end
 end

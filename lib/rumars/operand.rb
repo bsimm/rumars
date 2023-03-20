@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'expression'
+
 module RuMARS
   # An operand of the Instruction. Could be the A or B operand.
   class Operand
@@ -15,6 +17,13 @@ module RuMARS
 
       @address_mode = address_mode
       @number = number
+    end
+
+    def evaluate_expressions(symbol_table, instruction_address)
+      # In direct mode we don't need to convert the label into a PC-relative value.
+      instruction_address = 0 if @address_mode == '#'
+
+      @number = @number.eval(symbol_table, instruction_address)
     end
 
     def evaluate(context)
@@ -37,6 +46,8 @@ module RuMARS
           if @address_mode == '<' # Pre-decrement
             ir = context.memory_core.load_relative(context.program_counter, wp)
             ir.b_number = (ir.b_number + context.memory_core.size - 1) % context.memory_core.size
+            # Take ownership of the modified instruction
+            ir.pid = context.pid
           end
 
           # For instructions with Post-increment mode, the B-Field of the
@@ -55,22 +66,14 @@ module RuMARS
       # The Instruction Register is a copy of the instruction pointed to by the Pointer.
       ir = context.memory_core.load_relative(context.program_counter, rp)
 
-      # Execute the post-increment on the B-Number
-      pii.b_number = (pii.b_number + 1) % context.memory_core.size if @address_mode == '>'
+      if @address_mode == '>'
+        # Execute the post-increment on the B-Number
+        pii.b_number = (pii.b_number + 1) % context.memory_core.size
+        # Take ownership of the modified instruction
+        pii.pid = context.pid
+      end
 
       [rp, wp, ir]
-    end
-
-    def pointer(context)
-      context.program_counter + @number
-    end
-
-    def instruction(context)
-      context.memory_core.load(pointer(context)).deep_copy
-    end
-
-    def value
-      @number
     end
 
     def to_s
