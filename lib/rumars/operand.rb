@@ -10,6 +10,14 @@ module RuMARS
 
     ADDRESS_MODES = %w[# $ @ * < { > }].freeze
 
+    class OperandBus
+      attr_accessor :pointer, :instruction, :post_incr_instr
+
+      def initialize
+        @pointer = @instruction = @post_incr_instr = nil
+      end
+    end
+
     # @param address_mode [String] Address mode
     # @param number [String or Integer] Could be a label [String] that gets later relocated by the linker or an Integer number.
     def initialize(address_mode, number)
@@ -26,54 +34,58 @@ module RuMARS
       @number = @number.eval(symbol_table, instruction_address)
     end
 
-    def evaluate(context)
-      if @address_mode == '#' # Immedidate
-        rp = wp = 0
-      else
-        # For instructions with a Direct mode, the Pointer
-        # points to the instruction IR.Number away, relative to
-        # the Program Counter.
-        rp = @number
-        wp = @number
+    def evaluate(bus)
+      base_address = bus.base_address
+      program_counter = bus.program_counter
+      memory_core = bus.memory_core
 
-        # For instructions with indirection in the A-operand
-        # (Indirect, Pre-decrement, and Post-increment A-modes):
+      op_bus = OperandBus.new
+
+      if @address_mode == '#' # Immedidate
+        # The pointer is set to 0 for immediate values.
+        op_bus.pointer = 0
+      else
+        op_bus.pointer = @number
 
         if @address_mode != '$' # Not Direct
-          # For instructions with Pre-decrement mode, the B-Field of the
-          # instruction in Core currently pointed to by the Pointer is
-          # decremented (M - 1 is added).
-          if @address_mode == '<' # Pre-decrement
-            ir = context.memory_core.load_relative(context.program_counter, wp)
-            ir.b_number = (ir.b_number + context.memory_core.size - 1) % context.memory_core.size
+          # For indirect modes @*<>{} the number points to another instruction
+          # who's A- or B-numbers will be used to select the final instruction.
+          direct_instr = memory_core.load_relative(base_address, program_counter, op_bus.pointer)
+          if '<{'.include?(@address_mode) # Pre-decrement
+            if @address_mode == '<'
+              direct_instr.decrement_b_number(memory_core.size)
+            else
+              direct_instr.decrement_a_number(memory_core.size)
+            end
             # Take ownership of the modified instruction
-            ir.pid = context.pid
+            direct_instr.pid = bus.pid
           end
 
-          # For instructions with Post-increment mode, the B-Field of the
-          # instruction in Core currently pointed to by the Pointer will be
-          # incremented.
-          pii = context.memory_core.load_relative(context.program_counter, wp) if @address_mode == '>' # Post-increment
-
-          # For instructions with indirection in the operand, the Pointer
-          # ultimately points to the instruction Core[((PC + PCX) % M)].BNumber
-          # away, relative to the instruction pointed to by Pointer.
-          rp += context.memory_core.load_relative(context.program_counter, rp).b_number
-          wp += context.memory_core.load_relative(context.program_counter, wp).b_number
+          # Add A- or B-number to the pointer for '*' or '@' addressing modes.
+          offset = @address_mode == '@' ? direct_instr.b_number : direct_instr.a_number
+          op_bus.pointer = (op_bus.pointer + offset) % memory_core.size
         end
       end
 
-      # The Instruction Register is a copy of the instruction pointed to by the Pointer.
-      ir = context.memory_core.load_relative(context.program_counter, rp)
+      # Load the instruction that is addressed by this operand.
+      op_bus.instruction = bus.memory_core.load_relative(base_address, program_counter, op_bus.pointer)
+      op_bus.post_incr_instr = direct_instr if '>}'.include?(@address_mode)
 
+      op_bus
+    end
+
+    def post_increment(bus, op_bus)
+      return unless (instruction = op_bus.post_incr_instr)
+
+      # Execute the post-increment on the A- or B-Number of the instruction
+      # pointed to by pii
       if @address_mode == '>'
-        # Execute the post-increment on the B-Number
-        pii.b_number = (pii.b_number + 1) % context.memory_core.size
-        # Take ownership of the modified instruction
-        pii.pid = context.pid
+        instruction.increment_b_number(bus.memory_core.size)
+      else # '}'
+        instruction.increment_a_number(bus.memory_core.size)
       end
-
-      [rp, wp, ir]
+      # Take ownership of the modified instruction
+      instruction.pid = bus.pid
     end
 
     def to_s

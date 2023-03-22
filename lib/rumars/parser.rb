@@ -99,7 +99,7 @@ module RuMARS
         # Redcode files require a line that reads
         # ;redcode-94
         # All lines before this line will be ignored.
-        @ignore_lines = false if /\A;redcode-94\s\z/ =~ line
+        @ignore_lines = false if /\A;redcode(-94|)\s\z/ =~ line
 
         @line_no += 1
 
@@ -194,7 +194,7 @@ module RuMARS
     end
 
     def mode
-      scan(/[#@<>e$]/) || '$'
+      scan(/[#@*<>{}$]/) || '$'
     end
 
     def modifier

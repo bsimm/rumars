@@ -9,7 +9,7 @@ module RuMARS
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
-    def initialize(argv)
+    def initialize(argv = [])
       @memory_core = MemoryCore.new(800)
       @scheduler = Scheduler.new(@memory_core)
       # Certain commands like 'list' focus on a certain warrior. By default,
@@ -23,8 +23,8 @@ module RuMARS
       end
     end
 
-    def add_warrior(warrior, base_address = 0)
-      @scheduler.add_warrior(warrior, base_address)
+    def add_warrior(warrior)
+      @scheduler.add_warrior(warrior)
     end
 
     def run(max_cycles = 800)
@@ -50,8 +50,10 @@ module RuMARS
       args = command.split(/\s+/)
 
       case args.shift
+      when 'battle', 'ba'
+        @scheduler.battle
       when 'dump', 'du'
-        @memory_core.dump
+        @memory_core.dump(@scheduler.program_counters)
       when 'exit', 'ex'
         return false
       when 'focus', 'fo'
@@ -62,7 +64,9 @@ module RuMARS
       when 'load', 'lo'
         load_warriors(args)
       when 'step', 'st'
+        set_debug_level(1)
         @scheduler.step
+        set_debug_level(0)
       when 'run', 'ru'
         @scheduler.run(args.first&.to_i || -1)
       else
@@ -93,11 +97,17 @@ module RuMARS
     end
 
     def change_current_warrior(index)
-      unless (warrior = @scheduler.get_warrior_by_index(index))
+      unless (warrior = @scheduler.get_warrior_by_index(index - 1))
         puts "Unknown warrior #{index}"
       end
 
       @current_warrior = warrior
+    end
+
+    def set_debug_level(level)
+      @memory_core.debug_level = level
+      @scheduler.debug_level = level
+      Instruction.debug_level = level
     end
   end
 end

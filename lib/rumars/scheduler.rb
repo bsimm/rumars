@@ -7,11 +7,17 @@ module RuMARS
   # The scheduler manages the task queues of the warriors.
   class Scheduler
     attr_reader :cycles
+    attr_accessor :debug_level
 
     def initialize(memory_core)
       @memory_core = memory_core
       @warriors = []
+      @debug_level = 0
       @min_distance = @memory_core.size / 16
+    end
+
+    def log(text)
+      puts text if @debug_level > 0
     end
 
     def add_warrior(warrior)
@@ -42,7 +48,25 @@ module RuMARS
         step
 
         @cycles += 1
-        break if all_warriors_dead? || (max_cycles > 0 && @cycles >= max_cycles)
+        break if alive_warriors.zero? || (max_cycles > 0 && @cycles >= max_cycles)
+      end
+    end
+
+    # Run until only a single warrior is still alive
+    def battle(rounds = 7, max_cycles = -1)
+      rounds.times do |round|
+        @cycles = 0
+        loop do
+          step
+
+          @cycles += 1
+          break if alive_warriors == 1
+
+          if max_cycles > 0 && @cycles >= max_cycles
+            puts "No winner was found after #{max_cycles} cycles"
+            break
+          end
+        end
       end
     end
 
@@ -55,9 +79,12 @@ module RuMARS
         # Pull next PC from task queue
         address = warrior.next_task
         # Load instruction
-        instruction = @memory_core.load(address)
+        instruction = @memory_core.load(rel_address_to_abs(address, warrior.base_address))
         # and execute it
-        next unless (pics = instruction.execute(@memory_core, address, warrior.pid))
+        unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
+          puts "*** Warrior #{warrior.name} has died ***" if warrior.task_queue.empty?
+          next
+        end
 
         # Ensure that all pushed program counters are within the core memory
         pics.map! { |pc| (@memory_core.size + pc) % @memory_core.size }
@@ -65,16 +92,18 @@ module RuMARS
         warrior.append_tasks(pics)
 
         if (next_pc = warrior.task_queue.first) != ((@memory_core.size + address + 1) % @memory_core.size)
-          puts "Jumped to #{'%04d' % next_pc}: #{@memory_core.load(next_pc)}"
+          log("Jumped to #{'%04d' % next_pc}: #{@memory_core.load(next_pc)}")
         end
       end
     end
 
+    # @return [Array of Integer] List of absolute program counters for all warriors.
     def program_counters
       pcs = []
 
       @warriors.each do |warrior|
-        pcs += warrior.task_queue
+        # Get list of relative PCs from warriors and convert them into absolute PCs.
+        pcs += warrior.task_queue.map { |pc| rel_address_to_abs(pc, warrior.base_address) }
       end
 
       pcs
@@ -89,6 +118,15 @@ module RuMARS
       end
 
       true
+    end
+
+    def alive_warriors
+      alive = 0
+      @warriors.each do |warrior|
+        alive += 1 if warrior.alive?
+      end
+
+      alive
     end
 
     def find_base_address(size)
@@ -122,6 +160,10 @@ module RuMARS
       end
 
       false
+    end
+
+    def rel_address_to_abs(relative_address, base_address)
+      (@memory_core.size + relative_address + base_address) % @memory_core.size
     end
   end
 end
