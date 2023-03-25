@@ -11,7 +11,7 @@ RSpec.describe RuMARS::MARS do
             mov +0, +1
             end
     PRG
-    warrior.parse(prg)
+    warrior.parse(prg, mars.settings)
     mars.add_warrior(warrior)
     mars.run(80)
     expect(mars.cycles).to eql(80)
@@ -30,7 +30,7 @@ RSpec.describe RuMARS::MARS do
 
     mars = RuMARS::MARS.new
     warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg)
+    warrior.parse(prg, mars.settings)
     mars.add_warrior(warrior)
     mars.run(4)
     expect(mars.cycles).to eql(4)
@@ -52,7 +52,7 @@ RSpec.describe RuMARS::MARS do
 
     mars = RuMARS::MARS.new
     warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg)
+    warrior.parse(prg, mars.settings)
     mars.add_warrior(warrior)
     mars.run(10)
     expect(mars.cycles).to eql(10)
@@ -110,7 +110,7 @@ RSpec.describe RuMARS::MARS do
 
     mars = RuMARS::MARS.new
     warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg)
+    warrior.parse(prg, mars.settings)
     mars.add_warrior(warrior)
     mars.run(20)
     expect(mars.cycles).to eql(20)
@@ -239,7 +239,7 @@ RSpec.describe RuMARS::MARS do
 
     mars = RuMARS::MARS.new
     warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg)
+    warrior.parse(prg, mars.settings)
     mars.add_warrior(warrior)
     mars.run(200)
     expect(mars.cycles).to eql(200)
@@ -253,8 +253,9 @@ RSpec.describe RuMARS::MARS do
     PRG
 
     mars = RuMARS::MARS.new
+    mars.settings.max_processes = 8
     warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg)
+    warrior.parse(prg, mars.settings)
     mars.add_warrior(warrior)
     mars.run(100)
     expect(mars.cycles).to eql(100)

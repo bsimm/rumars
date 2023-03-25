@@ -8,7 +8,7 @@ module RuMARS
   # programs.
   class Warrior
     attr_reader :task_queue, :base_address, :name, :program
-    attr_accessor :pid
+    attr_accessor :pid, :max_tasks
 
     def initialize(name)
       @task_queue = [0]
@@ -19,11 +19,11 @@ module RuMARS
       @pid = nil
     end
 
-    def parse(program)
-      @program = Parser.new.parse(program)
+    def parse(program, settings)
+      @program = Parser.new(settings).parse(program)
     end
 
-    def parse_file(file_name)
+    def parse_file(file_name, settings)
       @name = file_name
       begin
         file = File.read(file_name)

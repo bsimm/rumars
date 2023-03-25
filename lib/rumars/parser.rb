@@ -82,12 +82,30 @@ module RuMARS
 
     attr_reader :file_name, :line_no, :scanner
 
-    def initialize
+    def initialize(settings)
       @line_no = 0
       @file_name = nil
       @scanner = nil
       # Hash to store the EQU definitions
-      @constants = {}
+      @constants = {
+        'CORESIZE' => MemoryCore.size.to_s,
+        'PSPACESIZE' => '0',
+        'VERSION' => '100',
+        'WARRIORS' => '1'
+      }
+      # Set other constants based on the MARS settings
+      settings.each do |name, value|
+        case name
+        when :max_processes
+          @constants['MAXPROCESSES'] = value.to_s
+        when :max_cycles
+          @constants['MAXCYCLES'] = value.to_s
+        when :max_length
+          @constants['MAXLENGTH'] = value.to_s
+        when :min_distance
+          @constants['MINDISTANCE'] = value.to_s
+        end
+      end
     end
 
     def parse(source_code)
@@ -108,6 +126,9 @@ module RuMARS
 
         # Ignore empty lines
         next if @ignore_lines || /\A\s*\z/ =~ line
+
+        # Set the CURLINE constant to the number of already read instructions
+        @constants['CURLINE'] = @program.instructions.length.to_s
 
         @constants.each do |name, text|
           line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)

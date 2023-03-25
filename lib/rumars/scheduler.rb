@@ -9,12 +9,12 @@ module RuMARS
     attr_reader :cycles
     attr_accessor :debug_level
 
-    def initialize(memory_core)
+    def initialize(memory_core, min_distance)
       @memory_core = memory_core
+      @min_distance = min_distance
       @warriors = []
       @breakpoints = []
       @debug_level = 0
-      @min_distance = MemoryCore.size / 16
     end
 
     def log(text)
@@ -104,9 +104,7 @@ module RuMARS
         # Append the next instruction address(es) to the task queue of the warrior.
         warrior.append_tasks(pics)
 
-        if pics.length > 1
-          log("New thread started at #{pics[1]}")
-        end
+        log("New thread started at #{pics[1]}") if pics.length > 1
 
         if (next_pc = warrior.task_queue.last) != MemoryCore.fold(address + 1)
           log("Jumped to #{'%04d' % next_pc}: #{@memory_core.load(next_pc)}")

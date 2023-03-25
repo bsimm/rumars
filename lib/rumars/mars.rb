@@ -9,12 +9,16 @@ module RuMARS
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
-    attr_reader :debug_level
+    attr_reader :debug_level, :settings
+
+    Settings = Struct.new(:core_size, :max_cycles, :max_processes, :max_length, :min_distance)
 
     def initialize(argv = [])
-      @core_size = 800
-      @memory_core = MemoryCore.new(@core_size)
-      @scheduler = Scheduler.new(@memory_core)
+      @settings = Settings.new(core_size: 800, max_cycles: 80_000,
+                               max_processes: 8000, max_length: 100, min_distance: 100)
+
+      @memory_core = MemoryCore.new(@settings.core_size)
+      @scheduler = Scheduler.new(@memory_core, @settings.min_distance)
       self.debug_level = 0
 
       # Certain commands like 'list' focus on a certain warrior. By default,
@@ -29,10 +33,17 @@ module RuMARS
     end
 
     def add_warrior(warrior)
+      if (length = warrior.program.instructions.length) > @settings.max_length
+        puts "Program of warrior #{warrior.name} must not be longer than " \
+             "#{@settings.max_length} instructions. I has #{length} instructions."
+        return
+      end
+
       @scheduler.add_warrior(warrior)
+      warrior.max_tasks = @settings.max_processes
     end
 
-    def run(max_cycles = 800)
+    def run(max_cycles = @settings.max_cycles)
       @scheduler.run(max_cycles)
     end
 
@@ -112,7 +123,7 @@ module RuMARS
 
     def load_warrior(file)
       warrior = Warrior.new("Player #{@scheduler.warrior_count}")
-      warrior.parse_file(file)
+      warrior.parse_file(file, @settings)
       @scheduler.add_warrior(warrior)
       @current_warrior = warrior
 

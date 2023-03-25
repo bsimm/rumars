@@ -3,8 +3,16 @@
 require_relative '../lib/rumars/parser'
 
 RSpec.describe RuMARS::Parser do
+  before(:all) do
+    @settings = {
+      core_size: 8000,
+      max_length: 100,
+      min_distance: 100
+    }
+  end
+
   it 'should parse a simple program' do
-    parser = RuMARS::Parser.new
+    parser = RuMARS::Parser.new(@settings)
     prog = <<~PRG
       ;redcode-94
           mov 0, 1
@@ -15,7 +23,7 @@ RSpec.describe RuMARS::Parser do
   end
 
   it 'should parse a program with constants' do
-    parser = RuMARS::Parser.new
+    parser = RuMARS::Parser.new(@settings)
     prog = <<~PRG
       ;redcode-94
       one    equ #1
@@ -27,7 +35,7 @@ RSpec.describe RuMARS::Parser do
   end
 
   it 'should parse a program with expressions' do
-    parser = RuMARS::Parser.new
+    parser = RuMARS::Parser.new(@settings)
     prog = <<~PRG
       ;redcode-94
              org start
