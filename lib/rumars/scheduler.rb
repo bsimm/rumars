@@ -12,8 +12,9 @@ module RuMARS
     def initialize(memory_core)
       @memory_core = memory_core
       @warriors = []
+      @breakpoints = []
       @debug_level = 0
-      @min_distance = @memory_core.size / 16
+      @min_distance = MemoryCore.size / 16
     end
 
     def log(text)
@@ -48,7 +49,14 @@ module RuMARS
         step
 
         @cycles += 1
-        break if alive_warriors.zero? || (max_cycles > 0 && @cycles >= max_cycles)
+        # Stop if the maximum cycle number has been reached or
+        # all warriors have died.
+        break if alive_warriors.zero? || (max_cycles.positive? && @cycles >= max_cycles)
+
+        if @breakpoints.intersect?(program_counters)
+          puts "Hit breakpoint at #{@breakpoints & program_counters} after #{@cycles} cycles"
+          break
+        end
       end
     end
 
@@ -76,37 +84,53 @@ module RuMARS
         # Skip dead Warriors
         next unless warrior.alive?
 
+        log("PCs: #{program_counters}")
         # Pull next PC from task queue
         address = warrior.next_task
         # Load instruction
-        instruction = @memory_core.load(rel_address_to_abs(address, warrior.base_address))
+        instruction = @memory_core.load(MemoryCore.fold(address + warrior.base_address))
         # and execute it
+        log("Executing instruction #{'%04d' % address}: #{instruction}")
         unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
-          puts "*** Warrior #{warrior.name} has died ***" if warrior.task_queue.empty?
+          puts "*** Warrior #{warrior.name} has died in cycle #{@cycles} ***" if warrior.task_queue.empty?
           next
         end
 
         # Ensure that all pushed program counters are within the core memory
-        pics.map! { |pc| (@memory_core.size + pc) % @memory_core.size }
+        pics.map! { |pc| MemoryCore.fold(pc) }
         # Append the next instruction address(es) to the task queue of the warrior.
         warrior.append_tasks(pics)
 
-        if (next_pc = warrior.task_queue.first) != ((@memory_core.size + address + 1) % @memory_core.size)
+        if pics.length > 1
+          log("New thread started at #{pics[1]}")
+        end
+
+        if (next_pc = warrior.task_queue.last) != MemoryCore.fold(address + 1)
           log("Jumped to #{'%04d' % next_pc}: #{@memory_core.load(next_pc)}")
         end
       end
     end
 
     # @return [Array of Integer] List of absolute program counters for all warriors.
-    def program_counters
+    def program_counters(warrior = nil)
+      return warrior.task_queue.map { |pc| MemoryCore.fold(pc + warrior.base_address) } if warrior
+
       pcs = []
 
       @warriors.each do |warrior|
         # Get list of relative PCs from warriors and convert them into absolute PCs.
-        pcs += warrior.task_queue.map { |pc| rel_address_to_abs(pc, warrior.base_address) }
+        pcs += warrior.task_queue.map { |pc| MemoryCore.fold(pc + warrior.base_address) }
       end
 
       pcs
+    end
+
+    def add_breakpoint(address)
+      @breakpoints << address unless @breakpoints.include?(address)
+    end
+
+    def delete_breakpoint(address)
+      @breakpoints.delete(address)
     end
 
     private
@@ -135,7 +159,7 @@ module RuMARS
 
       i = 0
       loop do
-        address = rand(@memory_core.size)
+        address = rand(MemoryCore.size)
 
         return address unless too_close_to_other_warriors?(address, address + size)
 
@@ -147,7 +171,7 @@ module RuMARS
 
     def too_close_to_other_warriors?(start_address, end_address)
       # All warriors must fit into the core without wrapping around.
-      return true if end_address >= @memory_core.size
+      return true if end_address >= MemoryCore.size
 
       @warriors.each do |warrior|
         warrior_zone_start = warrior.base_address - @min_distance
@@ -160,10 +184,6 @@ module RuMARS
       end
 
       false
-    end
-
-    def rel_address_to_abs(relative_address, base_address)
-      (@memory_core.size + relative_address + base_address) % @memory_core.size
     end
   end
 end

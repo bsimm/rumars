@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'expression'
+require_relative 'memory_core'
 
 module RuMARS
   # An operand of the Instruction. Could be the A or B operand.
@@ -8,13 +9,17 @@ module RuMARS
     attr_reader :address_mode
     attr_accessor :number
 
-    ADDRESS_MODES = %w[# $ @ * < { > }].freeze
+    ADDRESS_MODES = ['', '#', '$', '@', '*', '<', '{', '>', '}'].freeze
 
     class OperandBus
       attr_accessor :pointer, :instruction, :post_incr_instr
 
       def initialize
         @pointer = @instruction = @post_incr_instr = nil
+      end
+
+      def to_s
+        "pointer: #{@pointer}  instruction: #{@instruction}  post_inc_inst: #{@post_inc_inst}"
       end
     end
 
@@ -31,7 +36,7 @@ module RuMARS
       # In direct mode we don't need to convert the label into a PC-relative value.
       instruction_address = 0 if @address_mode == '#'
 
-      @number = @number.eval(symbol_table, instruction_address)
+      @number = MemoryCore.fold(@number.eval(symbol_table, instruction_address))
     end
 
     def evaluate(bus)
@@ -41,7 +46,7 @@ module RuMARS
 
       op_bus = OperandBus.new
 
-      if @address_mode == '#' # Immedidate
+      if @address_mode == '#' || @address_mode == '' # Immedidate
         # The pointer is set to 0 for immediate values.
         op_bus.pointer = 0
       else
@@ -51,19 +56,20 @@ module RuMARS
           # For indirect modes @*<>{} the number points to another instruction
           # who's A- or B-numbers will be used to select the final instruction.
           direct_instr = memory_core.load_relative(base_address, program_counter, op_bus.pointer)
-          if '<{'.include?(@address_mode) # Pre-decrement
-            if @address_mode == '<'
-              direct_instr.decrement_b_number(memory_core.size)
+          op_bus.pointer +=
+            if '<{'.include?(@address_mode) # Pre-decrement
+              # Take ownership of the modified instruction
+              direct_instr.pid = bus.pid
+              if @address_mode == '<'
+                direct_instr.decrement_b_number
+              else
+                direct_instr.decrement_a_number
+              end
             else
-              direct_instr.decrement_a_number(memory_core.size)
+              # Add A- or B-number to the pointer for '*', '}', '@' or '>' addressing modes.
+              '@>'.include?(@address_mode) ? direct_instr.b_number : direct_instr.a_number
             end
-            # Take ownership of the modified instruction
-            direct_instr.pid = bus.pid
-          end
-
-          # Add A- or B-number to the pointer for '*' or '@' addressing modes.
-          offset = @address_mode == '@' ? direct_instr.b_number : direct_instr.a_number
-          op_bus.pointer = (op_bus.pointer + offset) % memory_core.size
+          op_bus.pointer = MemoryCore.fold(op_bus.pointer)
         end
       end
 
@@ -80,9 +86,9 @@ module RuMARS
       # Execute the post-increment on the A- or B-Number of the instruction
       # pointed to by pii
       if @address_mode == '>'
-        instruction.increment_b_number(bus.memory_core.size)
+        instruction.increment_b_number
       else # '}'
-        instruction.increment_a_number(bus.memory_core.size)
+        instruction.increment_a_number
       end
       # Take ownership of the modified instruction
       instruction.pid = bus.pid

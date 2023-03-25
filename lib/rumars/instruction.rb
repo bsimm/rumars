@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'operand'
+require_relative 'memory_core'
 
 module RuMARS
   OPCODES = %w[DAT MOV ADD SUB MUL DIV MOD JMP JMZ JMN DJN CMP SLT SPL].freeze
@@ -9,6 +10,7 @@ module RuMARS
   ExecutionContext = Struct.new(:modifier, :program_counter, :memory_core, :pid, :base_address)
 
   # A REDCODE instruction that is stored in the core memory.
+  # https://corewar-docs.readthedocs.io/en/latest/redcode/
   class Instruction
     class DivBy0Error < RuntimeError
     end
@@ -57,11 +59,11 @@ module RuMARS
     end
 
     def log(text)
-      puts text if self.class.debug_level > 0
+      puts text if self.class.debug_level > 2
     end
 
     def log_update(text)
-      puts "Updated #{text} of #{@address ? '%04d' % @address : 'XXXX'}: #{self}" if self.class.debug_level > 0
+      puts "Updated #{text} of #{@address ? '%04d' % @address : 'XXXX'}: #{self}" if self.class.debug_level > 2
     end
 
     def a_number
@@ -73,9 +75,16 @@ module RuMARS
       log_update('A-Number')
     end
 
-    def decrement_a_number(core_size)
-      @a_operand.number = (core_size + a_number - 1) % core_size
+    def increment_a_number
+      n = @a_operand.number = MemoryCore.fold(a_number + 1)
       log_update('A-Number')
+      n
+    end
+
+    def decrement_a_number
+      n = @a_operand.number = MemoryCore.fold(a_number - 1)
+      log_update('A-Number')
+      n
     end
 
     def b_number
@@ -87,14 +96,16 @@ module RuMARS
       log_update('B-Number')
     end
 
-    def increment_b_number(core_size)
-      @b_operand.number = (b_number + 1) % core_size
+    def increment_b_number
+      n = @b_operand.number = MemoryCore.fold(b_number + 1)
       log_update('B-Number')
+      n
     end
 
-    def decrement_b_number(core_size)
-      @b_operand.number = (core_size + b_number - 1) % core_size
+    def decrement_b_number
+      n = @b_operand.number = MemoryCore.fold(b_number - 1)
       log_update('B-Number')
+      n
     end
 
     def evaluate_expressions(symbol_table, instruction_address)
@@ -106,7 +117,10 @@ module RuMARS
       bus = InstructionBus.new(memory_core, base_address, program_counter, @modifier, pid)
 
       bus.a_operand = @a_operand.evaluate(bus)
+      bus.a_operand.instruction = bus.a_operand.instruction.deep_copy
       bus.b_operand = @b_operand.evaluate(bus)
+      log("A-operand: #{bus.a_operand}")
+      log("B-operand: #{bus.b_operand}")
 
       log("Executing #{"%04d" % @address} #{self}")
       next_pc = [program_counter + 1]
@@ -182,18 +196,27 @@ module RuMARS
 
       case @modifier
       when 'A'
+        log("Jumping if ira A-Number (#{ira.a_number}) == irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number == irb.a_number
       when 'B'
+        log("Jumping if ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
         return next2_pc if ira.b_number == irb.b_number
       when 'AB'
+        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number == irb.b_number
       when 'BA'
+        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
         return next2_pc if ira.b_number == irb.a_number
       when 'F'
+        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number}) &&" \
+            "ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number == irb.a_number && ira.b_number == irb.b_number
       when 'X'
+        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number}) &&" \
+            "ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number == irb.b_number && ira.b_number == irb.a_number
       when 'I'
+        log("Jumping if ira (#{ira}) == irb (#{irb})")
         return next2_pc if ira == irb
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -206,75 +229,76 @@ module RuMARS
       ira = bus.a_operand.instruction
       irb = bus.b_operand.instruction
 
-      core_size = bus.memory_core.size
-
       case @modifier
       when 'A'
-        irb.a_number = arith_op(irb.a_number, op, ira.a_number, core_size)
+        irb.a_number = arith_op(irb.a_number, op, ira.a_number)
       when 'B'
-        irb.b_number = arith_op(irb.b_number, op, ira.b_number, core_size)
+        irb.b_number = arith_op(irb.b_number, op, ira.b_number)
       when 'AB'
-        irb.b_number = arith_op(ira.a_number, op, irb.b_number, core_size)
+        irb.b_number = arith_op(irb.b_number, op, ira.a_number)
       when 'BA'
-        irb.a_number = arith_op(ira.b_number, op, irb.a_number, core_size)
+        irb.a_number = arith_op(irb.a_number, op, ira.b_number)
       when 'F', 'I'
-        irb.a_number = arith_op(ira.a_number, op, irb.a_number, core_size)
-        irb.b_number = arith_op(ira.b_number, op, irb.b_number, core_size)
+        irb.a_number = arith_op(irb.a_number, op, ira.a_number)
+        irb.b_number = arith_op(irb.b_number, op, ira.b_number)
       when 'X'
-        irb.b_number = arith_op(ira.a_number, op, irb.b_number, core_size)
-        irb.a_number = arith_op(ira.b_number, op, irb.a_number, core_size)
+        irb.b_number = arith_op(irb.a_number, op, ira.b_number)
+        irb.a_number = arith_op(irb.b_number, op, ira.a_number)
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
       end
       irb.pid = bus.pid
     end
 
-    def arith_op(op1, operator, op2, core_size)
+    def arith_op(op1, operator, op2)
       case operator
       when '+'
-        log("Computing #{op1} + #{op2} = #{(op1 + op2) % core_size}")
-        (op1 + op2) % core_size
+        result = MemoryCore.fold(op1 + op2)
+        log("Computing #{op1} + #{op2} = #{result}")
       when '-'
-        log("Computing #{op1} - #{op2} = #{(op1 - op2) % core_size}")
-        (op1 + core_size - op2) % core_size
+        result = MemoryCore.fold(op1 - op2)
+        log("Computing #{op1} - #{op2} = #{result}")
       when '*'
-        log("Computing #{op1} * #{op2} = #{(op1 * op2) % core_size}")
-        (op1 * op2) % core_size
+        result = MemoryCore.fold(op1 * op2)
+        log("Computing #{op1} * #{op2} = #{result}")
       when '/'
         raise DivBy0Error if op2.zero?
 
-        log("Computing #{op1} / #{op2} = #{op1 / op2}")
-        op1 / op2
+        result = op1 / op2
+        log("Computing #{op1} / #{op2} = #{result}")
       when '%'
         raise DivBy0Error if op2.zero?
 
-        log("Computing #{op1} % #{op2} = #{op1 % op2}")
-        op1 % op2
+        result = op1 % op2
+        log("Computing #{op1} % #{op2} = #{result}")
       else
         raise ArgumentError, "Unknown operator #{operator}"
       end
+
+      result
     end
 
     def djn(bus)
       rpa = bus.a_operand.pointer
-      ira = bus.a_operand.instruction
       irb = bus.b_operand.instruction
 
-      core_size = bus.memory_core.size
       next_pc = [bus.program_counter + rpa]
       irb.pid = pid
 
       case @modifier
       when 'A', 'BA'
-        irb.decrement_a_number(core_size)
+        irb.decrement_a_number
+        log("Jumping if irb A-Number (#{irb.a_number}) != 0")
         return next_pc unless irb.a_number.zero?
       when 'B', 'AB'
-        irb.decrement_b_number(core_size)
+        irb.decrement_b_number
+        log("Jumping if irb B-Number (#{irb.b_number}) != 0")
         return next_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
-        irb.decrement_a_number(core_size)
-        irb.decrement_b_number(core_size)
-        return next_pc if !ira.a_number.zero? || !irb.b_number.zero?
+        irb.decrement_a_number
+        irb.decrement_b_number
+        log("Jumping if not (irb A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0)")
+        return next_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
       end
@@ -286,7 +310,7 @@ module RuMARS
       rpa = bus.a_operand.pointer
 
       # Return a PC-relative jump destination address
-      [bus.memory_core.add_addresses(bus.program_counter, rpa)]
+        [MemoryCore.fold(bus.program_counter + rpa)]
     end
 
     def jmz(bus)
@@ -294,15 +318,18 @@ module RuMARS
       irb = bus.b_operand.instruction
 
       # PC-relative jump destination address
-      jump_pc = [bus.memory_core.add_addresses(bus.program_counter, rpa)]
+      jump_pc = [MemoryCore.fold(bus.program_counter + rpa)]
 
       case @modifier
       when 'A', 'BA'
+        log("Jumping if irb A-Number (#{irb.a_number}) == 0")
         return jump_pc if irb.a_number.zero?
       when 'B', 'AB'
+        log("Jumping to #{jump_pc} if irb B-Number (#{irb.b_number}) == 0")
         return jump_pc if irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump of both of the fields are zero
+        log("Jumping if ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
         return jump_pc if irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -315,15 +342,18 @@ module RuMARS
       rpa = bus.a_operand.pointer
       irb = bus.b_operand.instruction
 
-      jump_pc = [bus.memory_core.add_addresses(bus.program_counter, rpa)]
+      jump_pc = [MemoryCore.fold(bus.program_counter + rpa)]
 
       case @modifier
       when 'A', 'BA'
+        log("Jumping if irb A-Number (#{irb.a_number}) != 0")
         return jump_pc unless irb.a_number.zero?
       when 'B', 'AB'
+        log("Jumping if irb B-Number (#{irb.b_number}) != 0")
         return jump_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump if either of the fields are zero
+        log("Jumping unless ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
         return jump_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -400,7 +430,7 @@ module RuMARS
 
       # Fork off another thread. One thread continues at the next instruction, the other at
       # the A-Pointer.
-      [bus.program_counter + 1, bus.memory_core.add_addresses(bus.program_counter, rpa)]
+      [bus.program_counter + 1, MemoryCore.fold(bus.program_counter + rpa)]
     end
   end
 end

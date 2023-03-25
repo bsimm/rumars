@@ -5,7 +5,7 @@ module RuMARS
   # A program consists of a set of instructions and meta information like
   # labels.
   class Program
-    attr_accessor :start_address, :instructions
+    attr_accessor :start_address, :instructions, :labels
 
     def initialize
       @start_address = 0
@@ -41,7 +41,7 @@ module RuMARS
         instruction_copy.pid = pid
         memory_core.store(address, instruction_copy)
 
-        address = (address + 1) % memory_core.size
+        address = (address + 1) % MemoryCore.size
       end
     end
 

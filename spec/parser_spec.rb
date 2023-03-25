@@ -44,7 +44,7 @@ RSpec.describe RuMARS::Parser do
     expect(program.instructions[0].b_operand.number).to eql(6)
     expect(program.instructions[1].a_operand.number).to eql(13)
     expect(program.instructions[1].b_operand.number).to eql(13)
-    expect(program.instructions[2].a_operand.number).to eql(-1)
-    expect(program.instructions[2].b_operand.number).to eql(-8)
+    expect(program.instructions[2].a_operand.number).to eql(7999)
+    expect(program.instructions[2].b_operand.number).to eql(7992)
   end
 end

@@ -9,9 +9,14 @@ module RuMARS
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
+    attr_reader :debug_level
+
     def initialize(argv = [])
-      @memory_core = MemoryCore.new(800)
+      @core_size = 800
+      @memory_core = MemoryCore.new(@core_size)
       @scheduler = Scheduler.new(@memory_core)
+      self.debug_level = 0
+
       # Certain commands like 'list' focus on a certain warrior. By default,
       # it is the more recently loaded warrior. Use the 'focus' command to
       # change the current warrior.
@@ -44,6 +49,13 @@ module RuMARS
       @scheduler.cycles
     end
 
+    def debug_level=(level)
+      @debug_level = level
+      @memory_core.debug_level = level
+      @scheduler.debug_level = level
+      Instruction.debug_level = level
+    end
+
     private
 
     def execute(command)
@@ -52,6 +64,10 @@ module RuMARS
       case args.shift
       when 'battle', 'ba'
         @scheduler.battle
+      when 'break', 'br'
+        add_breakpoint(args)
+      when 'debug'
+        self.debug_level = args.first&.to_i || 0
       when 'dump', 'du'
         @memory_core.dump(@scheduler.program_counters)
       when 'exit', 'ex'
@@ -59,16 +75,23 @@ module RuMARS
       when 'focus', 'fo'
         change_current_warrior(args.first&.to_i)
       when 'list', 'li'
-        @memory_core.list(@scheduler.program_counters, @current_warrior,
-                          *args.map(&:to_i))
+        if (address = resolve_label(args.first))
+          @memory_core.list(@scheduler.program_counters, @current_warrior,
+                            address)
+        end
       when 'load', 'lo'
         load_warriors(args)
-      when 'step', 'st'
-        set_debug_level(1)
-        @scheduler.step
-        set_debug_level(0)
+      when 'pcs'
+        list_program_counters
       when 'run', 'ru'
         @scheduler.run(args.first&.to_i || -1)
+      when 'step', 'st'
+        prev_debug_level = @debug_level
+        self.debug_level = 3
+        @scheduler.step
+        self.debug_level = prev_debug_level
+      when 'unbreak', 'un'
+        @scheduler.delete_breakpoint(args.first&.to_i)
       else
         puts "Unknown command: #{command}"
       end
@@ -88,13 +111,15 @@ module RuMARS
     end
 
     def load_warrior(file)
-      warrior = Warrior.new("Player #{@scheduler.warrior_count}")
+      warrior = Warrior.new("Player #{@scheduler.warrior_count}", @core_size)
       warrior.parse_file(file)
       @scheduler.add_warrior(warrior)
       @current_warrior = warrior
 
       warrior
     end
+
+    private
 
     def change_current_warrior(index)
       unless (warrior = @scheduler.get_warrior_by_index(index - 1))
@@ -104,10 +129,61 @@ module RuMARS
       @current_warrior = warrior
     end
 
-    def set_debug_level(level)
-      @memory_core.debug_level = level
-      @scheduler.debug_level = level
-      Instruction.debug_level = level
+    def list_program_counters
+      return unless @current_warrior
+
+      puts @scheduler.program_counters(@current_warrior).join(' ')
+    end
+
+    def add_breakpoint(breakpoints)
+      if breakpoints.empty?
+        puts 'You must specify a memory core address or a label name to set a breakpoint'
+        return
+      end
+
+      breakpoints.each do |breakpoint|
+        if (address = resolve_label(breakpoint))
+          @scheduler.add_breakpoint(address)
+        end
+      end
+    end
+
+    def remove_breakpoint(breakpoints)
+      if breakpoints.empty?
+        puts 'You must specify a memory core address or a label name to set a breakpoint'
+        return
+      end
+
+      breakpoints.each do |breakpoint|
+        if (address = resolve_label(breakpoint))
+          @scheduler.remove_breakpoint(address)
+        end
+      end
+    end
+
+    def resolve_label(label_or_address)
+      case label_or_address
+      when /\A\d+\z/
+        if (address = label_or_address.to_i) >= @memory_core.size
+          puts "Breakpoint address #{address} must be between 0 and #{@memory_core.size - 1}"
+          return nil
+        end
+
+        return address.to_i
+      when /\A[A-Za-z_][A-Za-z0-9_]*\z/
+        # We need to have at least one program loaded
+        return nil unless @current_warrior.program
+
+        if (address = @current_warrior.program.labels[label_or_address])
+          return (address + @current_warrior.base_address) % @memory_core.size
+        end
+
+        puts "Unknown program label '#{label_or_address}'"
+      else
+        puts 'You must specify a memory core address or a label of the currently selected program'
+      end
+
+      nil
     end
   end
 end

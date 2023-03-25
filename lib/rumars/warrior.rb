@@ -7,7 +7,7 @@ module RuMARS
   # programs fight against each other by trying to destroy the other
   # programs.
   class Warrior
-    attr_reader :task_queue, :base_address, :name
+    attr_reader :task_queue, :base_address, :name, :program
     attr_accessor :pid
 
     def initialize(name)
