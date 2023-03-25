@@ -111,7 +111,7 @@ module RuMARS
     end
 
     def load_warrior(file)
-      warrior = Warrior.new("Player #{@scheduler.warrior_count}", @core_size)
+      warrior = Warrior.new("Player #{@scheduler.warrior_count}")
       warrior.parse_file(file)
       @scheduler.add_warrior(warrior)
       @current_warrior = warrior
@@ -164,8 +164,8 @@ module RuMARS
     def resolve_label(label_or_address)
       case label_or_address
       when /\A\d+\z/
-        if (address = label_or_address.to_i) >= @memory_core.size
-          puts "Breakpoint address #{address} must be between 0 and #{@memory_core.size - 1}"
+        if (address = label_or_address.to_i) >= MemoryCore.size
+          puts "Breakpoint address #{address} must be between 0 and #{MemoryCore.size - 1}"
           return nil
         end
 
@@ -175,7 +175,7 @@ module RuMARS
         return nil unless @current_warrior.program
 
         if (address = @current_warrior.program.labels[label_or_address])
-          return (address + @current_warrior.base_address) % @memory_core.size
+          return MemoryCore.fold(address + @current_warrior.base_address)
         end
 
         puts "Unknown program label '#{label_or_address}'"

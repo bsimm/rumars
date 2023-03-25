@@ -12,6 +12,7 @@ module RuMARS
 
     def initialize(name)
       @task_queue = [0]
+      @max_tasks = 8
       @name = name
       @program = nil
       @base_address = nil
@@ -23,6 +24,7 @@ module RuMARS
     end
 
     def parse_file(file_name)
+      @name = file_name
       begin
         file = File.read(file_name)
       rescue IOError
@@ -37,6 +39,7 @@ module RuMARS
         puts e
         return false
       end
+      @name = @program.name unless @program.name.empty?
 
       true
     end
@@ -72,7 +75,13 @@ module RuMARS
         raise ArgumentError, 'Task list must contain only Interger addresses' unless task.is_a?(Integer)
       end
 
-      @task_queue += tasks
+      if @task_queue.length > @max_tasks - 2
+        # If the task queue is already full, we only append the current
+        # thread again. The new thread is ignored.
+        @task_queue.push(tasks.first)
+      else
+        @task_queue += tasks
+      end
     end
 
     # A warrior is considered alive as long as its task queue is not empty.

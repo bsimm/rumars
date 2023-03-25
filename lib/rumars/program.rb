@@ -5,12 +5,15 @@ module RuMARS
   # A program consists of a set of instructions and meta information like
   # labels.
   class Program
-    attr_accessor :start_address, :instructions, :labels
+    attr_accessor :start_address, :instructions, :labels, :name, :author
 
     def initialize
       @start_address = 0
       @instructions = []
       @labels = {}
+      @name = ''
+      @author = ''
+      @strategy = ''
     end
 
     def append_instruction(instruction)
@@ -19,6 +22,12 @@ module RuMARS
 
     def size
       @instructions.size
+    end
+
+    def add_strategy(text)
+      @strategy += "\n" unless @strategy.empty?
+
+      @strategy += text
     end
 
     # Register a new label. If no value is given, it is assumed to be a label

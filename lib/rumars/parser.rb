@@ -96,10 +96,13 @@ module RuMARS
       @line_no = 1
       @ignore_lines = true
       source_code.lines.each do |line|
+        # Remove trailing line break
+        line.chop!
+
         # Redcode files require a line that reads
         # ;redcode-94
         # All lines before this line will be ignored.
-        @ignore_lines = false if /\A;redcode(-94|)\s\z/ =~ line
+        @ignore_lines = false if /^;redcode(-94|)\s*$/ =~ line
 
         @line_no += 1
 
@@ -137,10 +140,6 @@ module RuMARS
       scan(/\s*/) || ''
     end
 
-    def eol
-      scan(/\r/)
-    end
-
     def semicolon
       scan(/;/)
     end
@@ -165,8 +164,8 @@ module RuMARS
       scan(/[+-]/)
     end
 
-    def anything_but_eol
-      scan(/[^\r]/)
+    def anything
+      scan(/.*$/)
     end
 
     def label
@@ -190,7 +189,7 @@ module RuMARS
     end
 
     def opcode
-      scan(/(ADD|CMP|DAT|DIV|DJN|JMN|JMP|JMZ|MOD|MOV|MUL|SLT|SPL|SUB)/i)
+      scan(/(ADD|CMP|DAT|DIV|DJN|JMN|JMP|JMZ|MOD|MOV|MUL|NOP|SEQ|SNE|SLT|SPL|SUB)/i)
     end
 
     def mode
@@ -209,11 +208,23 @@ module RuMARS
     # Grammar
     #
     def comment_or_instruction
-      (comment || instruction_line) && eol
+      (comment || instruction_line)
     end
 
     def comment
-      semicolon && anything_but_eol
+      (s = semicolon) && (text = anything)
+
+      return nil unless s
+
+      if text.start_with?('name ')
+        @program.name = text[5..].strip
+      elsif text.start_with?('author ')
+        @program.author = text[7..].strip
+      elsif text.start_with?('strategy ')
+        @program.add_strategy(text[9..])
+      end
+
+      ''
     end
 
     def instruction_line
@@ -356,21 +367,23 @@ module RuMARS
       case opc
       when 'ORG', 'END'
         return ''
-      when 'DAT'
-        return 'F' if '#$@<>'.include?(e1.address_mode) && '#$@<>'.include?(e2.address_mode)
+      when 'DAT', 'NOP'
+        return 'F'
       when 'MOV', 'CMP'
-        return 'AB' if e1.address_mode == '#' && '#$@<>'.include?(e2.address_mode)
-        return 'B' if '$@<>'.include?(e1.address_mode) && e2.address_mode == '#'
-        return 'I' if '$@<>'.include?(e1.address_mode) && '$@<>'.include?(e2.address_mode)
+        return 'AB' if e1.address_mode == '#' && '#$@*<>{}'.include?(e2.address_mode)
+        return 'B' if '$@*<>{}'.include?(e1.address_mode) && e2.address_mode == '#'
+        return 'I'
       when 'ADD', 'SUB', 'MUL', 'DIV', 'MOD'
-        return 'AB' if e1.address_mode == '#' && '#$@<>'.include?(e2.address_mode)
-        return 'B' if '$@<>'.include?(e1.address_mode) && e2.address_mode == '#'
-        return 'F' if '$@<>'.include?(e1.address_mode) && '$@<>'.include?(e2.address_mode)
+        return 'AB' if e1.address_mode == '#' && '#$@*<>{}'.include?(e2.address_mode)
+        return 'B' if '$@*<>{}'.include?(e1.address_mode) && e2.address_mode == '#'
+        return 'F'
       when 'SLT'
-        return 'AB' if e1.address_mode == '#' && '#$@<>'.include?(e2.address_mode)
-        return 'B' if '$@<>'.include?(e1.address_mode) && '#$@<>'.include?(e2.address_mode)
+        return 'AB' if e1.address_mode == '#' && '#$@*<>{}'.include?(e2.address_mode)
+        return 'B'
       when 'JMP', 'JMZ', 'JMN', 'DJN', 'SPL'
-        return 'B' if '#$@<>'.include?(e1.address_mode) && '#$@<>'.include?(e2.address_mode)
+        return 'B'
+      when 'SEQ', 'SNE'
+        return 'I'
       else
         raise ParseError.new(self, "Unknown instruction #{opc}")
       end

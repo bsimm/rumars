@@ -129,7 +129,8 @@ module RuMARS
       when 'ADD'
         arith('+', bus)
       when 'CMP'
-        next_pc = cmp(bus)
+        # Alias for SEQ. Not included in ICWS-94 standard draft
+        next_pc = seq(bus)
       when 'DAT'
         next_pc = nil
       when 'DIV'
@@ -156,6 +157,12 @@ module RuMARS
         mov(bus)
       when 'MUL'
         arith('*', bus)
+      when 'NOP'
+        # Do nothing
+      when 'SEC'
+        next_pc = seq(bus)
+      when 'SNE'
+        next_pc = sne(bus)
       when 'SLT'
         next_pc = slt(bus)
       when 'SPL'
@@ -187,43 +194,6 @@ module RuMARS
     end
 
     private
-
-    def cmp(bus)
-      ira = bus.a_operand.instruction
-      irb = bus.b_operand.instruction
-
-      next2_pc = [bus.program_counter + 2]
-
-      case @modifier
-      when 'A'
-        log("Jumping if ira A-Number (#{ira.a_number}) == irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.a_number == irb.a_number
-      when 'B'
-        log("Jumping if ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.b_number == irb.b_number
-      when 'AB'
-        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.a_number == irb.b_number
-      when 'BA'
-        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.b_number == irb.a_number
-      when 'F'
-        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number}) &&" \
-            "ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.a_number == irb.a_number && ira.b_number == irb.b_number
-      when 'X'
-        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number}) &&" \
-            "ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.a_number == irb.b_number && ira.b_number == irb.a_number
-      when 'I'
-        log("Jumping if ira (#{ira}) == irb (#{irb})")
-        return next2_pc if ira == irb
-      else
-        raise ArgumentError, "Unknown instruction modifier #{@modifier}"
-      end
-
-      [bus.program_counter + 1]
-    end
 
     def arith(op, bus)
       ira = bus.a_operand.instruction
@@ -397,6 +367,80 @@ module RuMARS
 
       # Ensure ownership of modified instruction
       irb.pid = bus.pid
+    end
+
+    def seq(bus)
+      ira = bus.a_operand.instruction
+      irb = bus.b_operand.instruction
+
+      next2_pc = [bus.program_counter + 2]
+
+      case @modifier
+      when 'A'
+        log("Jumping if ira A-Number (#{ira.a_number}) == irb A-Number (#{irb.a_number})")
+        return next2_pc if ira.a_number == irb.a_number
+      when 'B'
+        log("Jumping if ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
+        return next2_pc if ira.b_number == irb.b_number
+      when 'AB'
+        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number})")
+        return next2_pc if ira.a_number == irb.b_number
+      when 'BA'
+        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
+        return next2_pc if ira.b_number == irb.a_number
+      when 'F'
+        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number}) &&" \
+            "ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
+        return next2_pc if ira.a_number == irb.a_number && ira.b_number == irb.b_number
+      when 'X'
+        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number}) &&" \
+            "ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
+        return next2_pc if ira.a_number == irb.b_number && ira.b_number == irb.a_number
+      when 'I'
+        log("Jumping if ira (#{ira}) == irb (#{irb})")
+        return next2_pc if ira == irb
+      else
+        raise ArgumentError, "Unknown instruction modifier #{@modifier}"
+      end
+
+      [bus.program_counter + 1]
+    end
+
+    def sne(bus)
+      ira = bus.a_operand.instruction
+      irb = bus.b_operand.instruction
+
+      next2_pc = [bus.program_counter + 2]
+
+      case @modifier
+      when 'A'
+        log("Jumping if ira A-Number (#{ira.a_number}) != irb A-Number (#{irb.a_number})")
+        return next2_pc if ira.a_number != irb.a_number
+      when 'B'
+        log("Jumping if ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
+        return next2_pc if ira.b_number != irb.b_number
+      when 'AB'
+        log("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number})")
+        return next2_pc if ira.a_number != irb.b_number
+      when 'BA'
+        log("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
+        return next2_pc if ira.b_number != irb.a_number
+      when 'F'
+        log("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number}) &&" \
+            "ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
+        return next2_pc if ira.a_number != irb.a_number && ira.b_number != irb.b_number
+      when 'X'
+        log("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number}) &&" \
+            "ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
+        return next2_pc if ira.a_number != irb.b_number && ira.b_number != irb.a_number
+      when 'I'
+        log("Jumping if ira (#{ira}) != irb (#{irb})")
+        return next2_pc if ira != irb
+      else
+        raise ArgumentError, "Unknown instruction modifier #{@modifier}"
+      end
+
+      [bus.program_counter + 1]
     end
 
     def slt(bus)

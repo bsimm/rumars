@@ -244,4 +244,19 @@ RSpec.describe RuMARS::MARS do
     mars.run(200)
     expect(mars.cycles).to eql(200)
   end
+
+  it 'should support ICWS-94 style immediates' do
+    prg = <<~"PRG"
+      ;redcode-94
+            SPL    #0, }1
+            MOV.I  #1234, 1
+    PRG
+
+    mars = RuMARS::MARS.new
+    warrior = RuMARS::Warrior.new('Imp')
+    warrior.parse(prg)
+    mars.add_warrior(warrior)
+    mars.run(100)
+    expect(mars.cycles).to eql(100)
+  end
 end
