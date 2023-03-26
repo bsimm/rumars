@@ -33,7 +33,7 @@ module RuMARS
       end
 
       begin
-        parse(file)
+        parse(file, settings)
         puts "File #{file_name} loaded"
       rescue Parser::ParseError => e
         puts e
