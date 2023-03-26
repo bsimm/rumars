@@ -5,6 +5,7 @@ require 'strscan'
 require_relative 'program'
 require_relative 'instruction'
 require_relative 'expression'
+require_relative 'for_loop'
 
 # REDCODE 94 Syntax definition
 #
@@ -86,6 +87,7 @@ module RuMARS
       @line_no = 0
       @file_name = nil
       @scanner = nil
+      @for_loops = []
       # Hash to store the EQU definitions
       @constants = {
         'CORESIZE' => MemoryCore.size.to_s,
@@ -113,6 +115,7 @@ module RuMARS
 
       @line_no = 1
       @ignore_lines = true
+      buffer_lines = []
       source_code.lines.each do |line|
         # Remove trailing line break
         line.chop!
@@ -127,15 +130,44 @@ module RuMARS
         # Ignore empty lines
         next if @ignore_lines || /\A\s*\z/ =~ line
 
-        # Set the CURLINE constant to the number of already read instructions
-        @constants['CURLINE'] = @program.instructions.length.to_s
+        if (current_loop = @for_loops.last)
+          if /^\s*rof\s*(|;.*)$/ =~ line
+            @for_loops.pop
+          elsif (fl = /^([A-Za-z_][A-Za-z0-9_]*)\s+for\s+(\d+)\s*$/.match(line))
+            # For loop with loop variable
+            new_loop = ForLoop.new(fl[2].to_i, fl[1])
+            @for_loops.push(new_loop)
+            current_loop.add_line(new_loop)
+          elsif (fl = /^\s*for\s+(\d+)(|;.*)$/.match(line))
+            # For loop without loop variable
+            new_loop = ForLoop.new(fl[1])
+            @for_loops.push(new_loop)
+            current_loop.add_line(new_loop)
+          else
+            current_loop.add_line(line)
+          end
 
-        @constants.each do |name, text|
-          line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)
+          if @for_loops.empty?
+            buffer_lines = current_loop.unroll
+            next unless (line = buffer_lines.shift)
+          else
+            next
+          end
         end
 
-        @scanner = StringScanner.new(line)
-        comment_or_instruction
+        loop do
+          # Set the CURLINE constant to the number of already read instructions
+          @constants['CURLINE'] = @program.instructions.length.to_s
+
+          @constants.each do |name, text|
+            line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)
+          end
+
+          @scanner = StringScanner.new(line)
+          comment_or_instruction
+
+          break unless (line = buffer_lines.shift)
+        end
       end
 
       begin
@@ -197,6 +229,14 @@ module RuMARS
       scan(/EQU/i)
     end
 
+    def for_token
+      scan(/FOR/i)
+    end
+
+    def rof
+      scan(/ROF/i)
+    end
+
     def end_token
       scan(/END/i)
     end
@@ -253,7 +293,7 @@ module RuMARS
     end
 
     def pseudo_or_instruction(label)
-      equ_instruction(label) || end_instruction || org_instruction || instruction(label)
+      equ_instruction(label) || for_instruction(label) || end_instruction || org_instruction || instruction(label)
     end
 
     def equ_instruction(label)
@@ -266,6 +306,18 @@ module RuMARS
       raise ParseError.new(self, "Constant #{label} has already been defined") if @constants.include?(label)
 
       @constants[label] = definition
+    end
+
+    def for_instruction(label)
+      (f = for_token) && space && (repeats = not_comment)
+
+      return nil unless f
+
+      raise ParseError.new(self, 'for loop must have a fixed repeat count') unless repeats
+
+      @for_loops << ForLoop.new(repeats.to_i, label)
+
+      true
     end
 
     def org_instruction
