@@ -18,7 +18,7 @@ RSpec.describe RuMARS::Parser do
           mov 0, 1
           end
     PRG
-    program = parser.parse(prog)
+    program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(1)
   end
 
@@ -30,7 +30,7 @@ RSpec.describe RuMARS::Parser do
              mov 0, one
              end
     PRG
-    program = parser.parse(prog)
+    program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(1)
   end
 
@@ -46,7 +46,7 @@ RSpec.describe RuMARS::Parser do
       start  sub 1*3-4, (1-3)*4
              end
     PRG
-    program = parser.parse(prog)
+    program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(3)
     expect(program.start_address).to eql(2)
     expect(program.instructions[0].b_operand.number).to eql(6)
@@ -68,7 +68,7 @@ RSpec.describe RuMARS::Parser do
              rof
              end
     PRG
-    program = parser.parse(prog)
+    program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(5)
     expect(program.start_address).to eql(1)
   end
@@ -86,7 +86,7 @@ RSpec.describe RuMARS::Parser do
              rof
              end
     PRG
-    program = parser.parse(prog)
+    program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(2)
     expect(program.start_address).to eql(1)
   end
@@ -103,7 +103,7 @@ RSpec.describe RuMARS::Parser do
              rof
              end
     PRG
-    program = parser.parse(prog)
+    program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(5)
     expect(program.start_address).to eql(1)
   end
@@ -125,7 +125,7 @@ RSpec.describe RuMARS::Parser do
              rof
              end
     PRG
-    program = parser.parse(prog)
+    program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(20)
     expect(program.start_address).to eql(1)
   end

@@ -54,7 +54,7 @@ module RuMARS
     def list(program_counters, current_warrior, start_address = current_warrior.base_address, length = 10)
       length.times do |i|
         address = start_address + i
-        puts" #{'%04d' % address} #{program_counters.include?(address) ? '>' : ' '} #{'%-8s' % current_warrior.resolve_address(address)} #{@instructions[address]}"
+        puts" #{'%04d' % address} #{program_counters.include?(address) ? '>' : ' '} #{'%-8s' % (current_warrior&.resolve_address(address) || '')} #{@instructions[address]}"
       end
     end
 

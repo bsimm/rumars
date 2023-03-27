@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'expression'
+
 module RuMARS
   # Intermediate representation of a REDCODE program as returned by the Parser.
   # A program consists of a set of instructions and meta information like
@@ -59,7 +61,11 @@ module RuMARS
       @start_address = @start_address.eval(@labels, 0) unless @start_address.is_a?(Integer)
 
       @instructions.each_with_index do |instruction, address|
-        instruction.evaluate_expressions(@labels, address)
+        begin
+          instruction.evaluate_expressions(@labels, address)
+        rescue Expression::ExpressionError
+          raise Expression::ExpressionError, instruction.to_s
+        end
       end
     end
 

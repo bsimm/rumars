@@ -2,6 +2,7 @@
 
 require 'strscan'
 
+require_relative 'settings'
 require_relative 'program'
 require_relative 'instruction'
 require_relative 'expression'
@@ -75,13 +76,13 @@ module RuMARS
       end
 
       def to_s
-        "#{@parser.file_name ? "#{@parser.file_name}: " : ''}#{@parser.line_no}: #{@message}'\n" \
-          "  #{@parser.scanner.string}\n" \
-          "  #{' ' * @parser.scanner.pos}^"
+        "#{@parser.file_name ? "#{@parser.file_name}: " : ''}#{@parser.line_no}: #{@message}'\n  " \
+          "#{@parser.scanner.string}\n  " \
+          "#{' ' * @parser.scanner.pos}^"
       end
     end
 
-    attr_reader :file_name, :line_no, :scanner
+    attr_reader :file_name, :line_no, :scanner, :constants
 
     def initialize(settings)
       @line_no = 0
@@ -110,7 +111,7 @@ module RuMARS
       end
     end
 
-    def parse(source_code)
+    def preprocess_and_parse(source_code)
       @program = Program.new
 
       @line_no = 1
@@ -130,30 +131,7 @@ module RuMARS
         # Ignore empty lines
         next if @ignore_lines || /\A\s*\z/ =~ line
 
-        if (current_loop = @for_loops.last)
-          if /^\s*rof\s*(|;.*)$/ =~ line
-            @for_loops.pop
-          elsif (fl = /^([A-Za-z_][A-Za-z0-9_]*)\s+for\s+(\d+)\s*$/.match(line))
-            # For loop with loop variable
-            new_loop = ForLoop.new(fl[2].to_i, fl[1])
-            @for_loops.push(new_loop)
-            current_loop.add_line(new_loop)
-          elsif (fl = /^\s*for\s+(\d+)(|;.*)$/.match(line))
-            # For loop without loop variable
-            new_loop = ForLoop.new(fl[1])
-            @for_loops.push(new_loop)
-            current_loop.add_line(new_loop)
-          else
-            current_loop.add_line(line)
-          end
-
-          if @for_loops.empty?
-            buffer_lines = current_loop.unroll
-            next unless (line = buffer_lines.shift)
-          else
-            next
-          end
-        end
+        next unless (line = collect_for_loops(line, buffer_lines))
 
         loop do
           # Set the CURLINE constant to the number of already read instructions
@@ -163,8 +141,7 @@ module RuMARS
             line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)
           end
 
-          @scanner = StringScanner.new(line)
-          comment_or_instruction
+          parse(line, :comment_or_instruction)
 
           break unless (line = buffer_lines.shift)
         end
@@ -174,12 +151,46 @@ module RuMARS
         @program.evaluate_expressions
       rescue Expression::ExpressionError => e
         raise ParseError.new(self, "Error in expression: #{e.message}")
+        @program = nil
       end
 
       @program
     end
 
+    def parse(text, entry_token)
+      @scanner = StringScanner.new(text)
+      send(entry_token)
+    end
+
     private
+
+    def collect_for_loops(line, buffer_lines)
+      if (current_loop = @for_loops.last)
+        if /^\s*rof\s*(|;.*)$/ =~ line
+          @for_loops.pop
+        elsif (fl = /^([A-Za-z_][A-Za-z0-9_]*)\s+for\s+(.+)$/.match(line))
+          # For loop with loop variable
+          new_loop = ForLoop.new(@constants, fl[2], fl[1])
+          @for_loops.push(new_loop)
+          current_loop.add_line(new_loop)
+        elsif (fl = /^\s*for\s+(.+)$/.match(line))
+          # For loop without loop variable
+          new_loop = ForLoop.new(@constants, fl[1])
+          @for_loops.push(new_loop)
+          current_loop.add_line(new_loop)
+        else
+          current_loop.add_line(line)
+        end
+
+        return nil unless @for_loops.empty?
+
+        buffer_lines.concat(current_loop.unroll)
+
+        line = buffer_lines.shift
+      end
+
+      line
+    end
 
     def scan(regexp)
       # puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
@@ -202,7 +213,7 @@ module RuMARS
     end
 
     def operator
-      scan(/[-+*\\%]/)
+      scan(%r{[-+*/%]})
     end
 
     def open_parenthesis
@@ -222,7 +233,7 @@ module RuMARS
     end
 
     def label
-      scan(/[A-Za-z_][A-Za-z0-9]*/)
+      scan(/[A-Za-z_][A-Za-z0-9_]*/)
     end
 
     def equ
@@ -289,11 +300,14 @@ module RuMARS
     end
 
     def instruction_line
-      (label = optional_label) && space && pseudo_or_instruction(label) && space && optional_comment
+      (label = optional_label) && space && (poi = pseudo_or_instruction(label)) && space && optional_comment
+
+      # Lines that only have a label are labels for the line with the next instruction.
+      @program.add_label(label) if poi == 'label_line' && !label.empty?
     end
 
     def pseudo_or_instruction(label)
-      equ_instruction(label) || for_instruction(label) || end_instruction || org_instruction || instruction(label)
+      equ_instruction(label) || for_instruction(label) || end_instruction || org_instruction || instruction(label) || 'label_line'
     end
 
     def equ_instruction(label)
@@ -315,7 +329,7 @@ module RuMARS
 
       raise ParseError.new(self, 'for loop must have a fixed repeat count') unless repeats
 
-      @for_loops << ForLoop.new(repeats.to_i, label)
+      @for_loops << ForLoop.new(@constants, repeats, label)
 
       true
     end
@@ -345,7 +359,7 @@ module RuMARS
       (opc = opcode) && (mod = optional_modifier[1..]) &&
         space && (e1 = expression) && space && (e2 = optional_expression) && space && optional_comment
 
-      raise ParseError.new(self, 'Uknown instruction') unless opc
+      return nil unless opc
       # Redcode instructions are case-insensitive. We use upper case internally,
       # but allow for lower-case notation in source files.
       opc.upcase!

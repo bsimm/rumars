@@ -12,7 +12,19 @@ module RuMARS
     end
 
     def eval(symbol_table, instruction_address = 0)
+      begin
+        eval_recursive(symbol_table, instruction_address)
+      rescue ExpressionError => e
+        raise ExpressionError, "#{self}: #{e.message}"
+      end
+    end
+
+    def eval_recursive(symbol_table, instruction_address)
       @operator ? eval_binary(symbol_table, instruction_address) : eval_unary(symbol_table, instruction_address)
+    end
+
+    def to_s
+      @operator ? "#{@operand1} #{@operator} #{@operand2}" : @operand1.to_s
     end
 
     private
@@ -52,11 +64,11 @@ module RuMARS
       when String
         raise ExpressionError, "Unknown symbol #{operand}" unless symbol_table.include?(operand)
 
-        symbol_table[operand] - instruction_address
+        symbol_table[operand].to_i - instruction_address
       when Expression
-        operand.eval(symbol_table, instruction_address)
+        operand.eval_recursive(symbol_table, instruction_address)
       else
-        raise RuntimeError, "Unknown operand class #{operand.class}"
+        raise "Unknown operand class #{operand.class}"
       end
     end
   end

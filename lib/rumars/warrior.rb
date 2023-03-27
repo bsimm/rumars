@@ -12,7 +12,7 @@ module RuMARS
 
     def initialize(name)
       @task_queue = [0]
-      @max_tasks = 8
+      @max_tasks = 800
       @name = name
       @program = nil
       @base_address = nil
@@ -20,7 +20,7 @@ module RuMARS
     end
 
     def parse(program, settings)
-      @program = Parser.new(settings).parse(program)
+      @program = Parser.new(settings).preprocess_and_parse(program)
     end
 
     def parse_file(file_name, settings)

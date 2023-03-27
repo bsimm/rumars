@@ -185,7 +185,7 @@ module RuMARS
     end
 
     def to_s
-      "#{@opcode}.#{@modifier} #{@a_operand} #{@b_operand}"
+      "#{@opcode}.#{@modifier} #{@a_operand}, #{@b_operand}"
     end
 
     def ==(other)

@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'readline'
+
+require_relative 'settings'
 require_relative 'memory_core'
 require_relative 'scheduler'
 require_relative 'warrior'
@@ -10,8 +13,6 @@ module RuMARS
   # http://www.koth.org/info/icws94.html
   class MARS
     attr_reader :debug_level, :settings
-
-    Settings = Struct.new(:core_size, :max_cycles, :max_processes, :max_length, :min_distance)
 
     def initialize(argv = [])
       @settings = Settings.new(core_size: 800, max_cycles: 80_000,
@@ -49,8 +50,9 @@ module RuMARS
 
     def repl
       loop do
-        print 'MARS>> '
-        command = $stdin.gets.chomp
+        # print 'MARS>> '
+        # command = $stdin.gets.chomp
+        command = Readline.readline('MARS>> ', true)
 
         break unless execute(command)
       end
@@ -123,7 +125,8 @@ module RuMARS
 
     def load_warrior(file)
       warrior = Warrior.new("Player #{@scheduler.warrior_count}")
-      warrior.parse_file(file, @settings)
+      return nil unless warrior.parse_file(file, @settings)
+
       @scheduler.add_warrior(warrior)
       @current_warrior = warrior
 
