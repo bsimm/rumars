@@ -36,7 +36,7 @@ module RuMARS
 
       resolve_expression(outer_loop_variables).times do |i|
         sub_lines = []
-        olv[@loop_var_name] = i
+        olv[@loop_var_name] = i if @loop_var_name && !@loop_var_name.empty?
 
         @lines.each do |line|
           # Recurse to expend nested loops
@@ -70,6 +70,7 @@ module RuMARS
     private
 
     def replace_loop_var_name_with_index(text, loop_var_name, counter)
+      raise if loop_var_name.nil? || loop_var_name.empty?
       text.gsub(Regexp.new("&#{loop_var_name}(?!<=\w)"), format('%02d', counter + 1))
           .gsub(Regexp.new("(?!<=\W)#{loop_var_name}(?!<=\w)"), (counter + 1).to_s)
     end

@@ -5,10 +5,30 @@ module RuMARS
     class ExpressionError < RuntimeError
     end
 
+    attr_reader :operator
+    attr_accessor :operand1, :parenthesis
+
+    PRECEDENCE = {
+      '*' => 4,
+      '/' => 4,
+      '+' => 3,
+      '-' => 3,
+      '!' => 3,
+      '==' => 2,
+      '!=' => 2,
+      '<' => 2,
+      '>' => 2,
+      '>=' => 2,
+      '<=' => 2,
+      '&&' => 1,
+      '||' => 0
+    }
+
     def initialize(operand1, operator, operand2)
       @operand1 = operand1
       @operator = operator
       @operand2 = operand2
+      @parenthesis = false
     end
 
     def eval(symbol_table, instruction_address = 0)
@@ -23,8 +43,27 @@ module RuMARS
       @operator ? eval_binary(symbol_table, instruction_address) : eval_unary(symbol_table, instruction_address)
     end
 
+    # Find the leftmost operation of this expression that has a lower or equal
+    # precedence than the provided operator.
+    def find_lhs_node(operator)
+      return nil unless lower_or_equal_precedence?(operator)
+
+      expr = self
+      expr = expr.operand1 while expr.operand1.is_a?(Expression) && expr.operand1.lower_or_equal_precedence?(operator)
+
+      expr
+    end
+
+    # @return true if the passed operator has a lower or equal precedence than
+    #         the operator of the Expression
+    def lower_or_equal_precedence?(other_operator)
+      return false if @operator.nil? || @parenthesis
+
+      PRECEDENCE[@operator] <= PRECEDENCE[other_operator]
+    end
+
     def to_s
-      @operator ? "#{@operand1} #{@operator} #{@operand2}" : @operand1.to_s
+      @operator ? "(#{@operand1} #{@operator} #{@operand2})" : @operand1.to_s
     end
 
     private

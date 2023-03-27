@@ -402,7 +402,16 @@ module RuMARS
       if optr
         raise ParseError.new(self, 'Right hand side of expression is missing') unless t2
 
-        Expression.new(t1, optr, t2)
+        # Eliminate needless unary expression.
+        t1 = t1.operand1 unless t1.nil? || t1.operator
+
+        if t2.respond_to?(:find_lhs_node) && (node = t2.find_lhs_node(optr))
+          ex = Expression.new(t1, optr, node.operand1)
+          node.operand1 = ex
+          t2
+        else
+          Expression.new(t1, optr, t2)
+        end
       else
         t1
       end
@@ -412,6 +421,10 @@ module RuMARS
       t = (label || number || parenthesized_expression)
 
       return nil unless t
+
+      # Protect the expression in parenthesis from being broken up by
+      # the precedence evaluation.
+      t.parenthesis = true if t.is_a?(Expression)
 
       Expression.new(t, nil, nil)
     end
