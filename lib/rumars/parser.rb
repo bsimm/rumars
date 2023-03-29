@@ -193,7 +193,7 @@ module RuMARS
     end
 
     def scan(regexp)
-      # puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
+      puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
       @scanner.scan(regexp)
     end
 
@@ -213,7 +213,7 @@ module RuMARS
     end
 
     def operator
-      scan(%r{[-+*/%]})
+      scan(%r{(-|\+|\*|/|%|==|!=|<|>|<=|>=|&&|\|\|)})
     end
 
     def open_parenthesis

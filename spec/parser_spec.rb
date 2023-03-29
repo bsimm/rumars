@@ -71,10 +71,11 @@ RSpec.describe RuMARS::Parser do
              sub 5-4-3-2-1, 5/4/3/2/1
              add 1+2*3+4, 4-3/2-1
              sub 10-9-8+7*6*5-4-3*2*1,10-(9-8)+7*6-(5-4)+3*2-1
+             add 5||0, 2 + 3 && 1
              end
     PRG
     program = parser.preprocess_and_parse(prog)
-    expect(program.instructions.size).to eql(6)
+    expect(program.instructions.size).to eql(7)
     expect(program.start_address).to eql(2)
     expect(program.instructions[0].a_operand.number).to eql(10)
     expect(program.instructions[0].b_operand.number).to eql(6)
@@ -88,6 +89,8 @@ RSpec.describe RuMARS::Parser do
     expect(program.instructions[4].b_operand.number).to eql(2)
     expect(program.instructions[5].a_operand.number).to eql(193)
     expect(program.instructions[5].b_operand.number).to eql(55)
+    expect(program.instructions[6].a_operand.number).to eql(1)
+    expect(program.instructions[6].b_operand.number).to eql(1)
   end
 
   it 'should expand a simple for loop' do

@@ -25,22 +25,24 @@ module RuMARS
     }
 
     def initialize(operand1, operator, operand2)
+      raise ArgumentError, 'Operand 1 of an expression must not be nil' unless operand1
+      raise ArgumentError, 'Binary expression must have an operator' if operand2 && operator.nil?
+
       @operand1 = operand1
       @operator = operator
       @operand2 = operand2
+
       @parenthesis = false
     end
 
     def eval(symbol_table, instruction_address = 0)
-      begin
-        eval_recursive(symbol_table, instruction_address)
-      rescue ExpressionError => e
-        raise ExpressionError, "#{self}: #{e.message}"
-      end
+      eval_recursive(symbol_table, instruction_address)
+    rescue ExpressionError => e
+      raise ExpressionError, "#{self}: #{e.message}"
     end
 
     def eval_recursive(symbol_table, instruction_address)
-      @operator ? eval_binary(symbol_table, instruction_address) : eval_unary(symbol_table, instruction_address)
+      @operand2 ? eval_binary(symbol_table, instruction_address) : eval_unary(symbol_table, instruction_address)
     end
 
     # Find the leftmost operation of this expression that has a lower or equal
@@ -63,13 +65,28 @@ module RuMARS
     end
 
     def to_s
-      @operator ? "(#{@operand1} #{@operator} #{@operand2})" : @operand1.to_s
+      if @operand2
+        "(#{@operand1} #{@operator} #{@operand2})"
+      elsif @operator
+        "#{@operator}#{@operand1}"
+      else
+        @operand1.to_s
+      end
     end
 
     private
 
     def eval_unary(symbol_table, instruction_address)
-      eval_operand(@operand1, symbol_table, instruction_address)
+      result = eval_operand(@operand1, symbol_table, instruction_address)
+
+      case @operator
+      when '-'
+        -result
+      when '!'
+        result ? 0 : 1
+      else
+        result
+      end
     end
 
     def eval_binary(symbol_table, instruction_address)
@@ -91,6 +108,22 @@ module RuMARS
         raise ExpressionError, 'Modulo by zero' if op2.zero?
 
         op1 % op2
+      when '=='
+        eval_boolean(op1 == op2)
+      when '!='
+        eval_boolean(op1 != op2)
+      when '<'
+        eval_boolean(op1 < op2)
+      when '>'
+        eval_boolean(op1 > op2)
+      when '<='
+        eval_boolean(op1 <= op2)
+      when '>='
+        eval_boolean(op1 >= op2)
+      when '&&'
+        eval_boolean(op1 && op2)
+      when '||'
+        eval_boolean(op1 || op2)
       else
         raise ArgumentError, "Unknown operator #{@operator}"
       end
@@ -109,6 +142,10 @@ module RuMARS
       else
         raise "Unknown operand class #{operand.class}"
       end
+    end
+
+    def eval_boolean(value)
+      value ? 1 : 0
     end
   end
 end
