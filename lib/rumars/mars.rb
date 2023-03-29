@@ -125,6 +125,7 @@ module RuMARS
 
     def load_warrior(file)
       warrior = Warrior.new("Player #{@scheduler.warrior_count}")
+      puts "Settings: #{@settings}"
       return nil unless warrior.parse_file(file, @settings)
 
       @scheduler.add_warrior(warrior)
@@ -132,8 +133,6 @@ module RuMARS
 
       warrior
     end
-
-    private
 
     def change_current_warrior(index)
       unless (warrior = @scheduler.get_warrior_by_index(index - 1))

@@ -238,6 +238,7 @@ RSpec.describe RuMARS::MARS do
     PRG
 
     mars = RuMARS::MARS.new
+    mars.settings.max_length = 100
     warrior = RuMARS::Warrior.new('Imp')
     warrior.parse(prg, mars.settings)
     mars.add_warrior(warrior)

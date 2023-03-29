@@ -97,7 +97,7 @@ module RuMARS
         'WARRIORS' => '1'
       }
       # Set other constants based on the MARS settings
-      settings.each do |name, value|
+      settings.each_pair do |name, value|
         case name
         when :max_processes
           @constants['MAXPROCESSES'] = value.to_s
@@ -193,7 +193,7 @@ module RuMARS
     end
 
     def scan(regexp)
-      puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
+      # puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
       @scanner.scan(regexp)
     end
 
@@ -213,7 +213,7 @@ module RuMARS
     end
 
     def operator
-      scan(%r{(-|\+|\*|/|%|==|!=|<|>|<=|>=|&&|\|\|)})
+      scan(%r{(-|\+|\*|/|%|==|!=|<=|>=|<|>|&&|\|\|)})
     end
 
     def open_parenthesis
@@ -294,6 +294,13 @@ module RuMARS
         @program.author = text[7..].strip
       elsif text.start_with?('strategy ')
         @program.add_strategy(text[9..])
+      elsif text.start_with?('assert ')
+        assert = text[7..]
+        parser = Parser.new({})
+        expression = parser.parse(assert, :expr)
+        unless expression.eval(@constants)
+          raise ParseError.new(self, "Assert failed: #{expression}")
+        end
       end
 
       ''
