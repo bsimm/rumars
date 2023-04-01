@@ -15,7 +15,7 @@ module RuMARS
     attr_reader :debug_level, :settings
 
     def initialize(argv = [])
-      @settings = Settings.new(core_size: 800, max_cycles: 80_000,
+      @settings = Settings.new(core_size: 8000, max_cycles: 80_000,
                                max_processes: 8000, max_length: 100, min_distance: 100)
 
       @memory_core = MemoryCore.new(@settings.core_size)
@@ -125,7 +125,6 @@ module RuMARS
 
     def load_warrior(file)
       warrior = Warrior.new("Player #{@scheduler.warrior_count}")
-      puts "Settings: #{@settings}"
       return nil unless warrior.parse_file(file, @settings)
 
       @scheduler.add_warrior(warrior)

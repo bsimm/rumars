@@ -295,12 +295,11 @@ module RuMARS
       elsif text.start_with?('strategy ')
         @program.add_strategy(text[9..])
       elsif text.start_with?('assert ')
-        assert = text[7..]
+        assert = text[7..].strip
         parser = Parser.new({})
         expression = parser.parse(assert, :expr)
-        unless expression.eval(@constants)
-          raise ParseError.new(self, "Assert failed: #{expression}")
-        end
+
+        raise ParseError.new(self, "Assert failed: #{expression}") unless expression.eval(@constants) == 1
       end
 
       ''
