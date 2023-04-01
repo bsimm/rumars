@@ -8,6 +8,7 @@ module RuMARS
   class Scheduler
     attr_reader :cycles
     attr_accessor :debug_level
+    attr_accessor :logger, :console
 
     def initialize(memory_core, min_distance)
       @memory_core = memory_core
@@ -15,17 +16,23 @@ module RuMARS
       @warriors = []
       @breakpoints = []
       @debug_level = 0
+      @logger = $stdout
+      @console = $stdout
     end
 
     def log(text)
-      puts text if @debug_level > 0
+      @logger.puts text if @debug_level.positive?
+    end
+
+    def console(text)
+      @console.puts(text)
     end
 
     def add_warrior(warrior)
       raise ArgumentError, 'Warrior is already known' if @warriors.include?(warrior)
 
       unless (base_address = find_base_address(warrior.size))
-        puts 'No more space in core memory to load another warrior'
+        console 'No more space in core memory to load another warrior'
       end
 
       @warriors << warrior
@@ -54,7 +61,7 @@ module RuMARS
         break if alive_warriors.zero? || (max_cycles.positive? && @cycles >= max_cycles)
 
         if @breakpoints.intersect?(program_counters)
-          puts "Hit breakpoint at #{@breakpoints & program_counters} after #{@cycles} cycles"
+          console "Hit breakpoint at #{@breakpoints & program_counters} after #{@cycles} cycles"
           break
         end
       end
@@ -75,7 +82,7 @@ module RuMARS
         break if alive_warriors == 1
 
         if max_cycles.positive? && @cycles >= max_cycles
-          puts "No winner was found after #{max_cycles} cycles"
+          console "No winner was found after #{max_cycles} cycles"
           break
         end
       end
@@ -95,7 +102,7 @@ module RuMARS
         # and execute it
         log("Executing instruction #{'%04d' % address}: #{instruction}")
         unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
-          puts "*** Warrior #{warrior.name} has died in cycle #{@cycles} ***" if warrior.task_queue.empty?
+          console "*** Warrior #{warrior.name} has died in cycle #{@cycles} ***" if warrior.task_queue.empty?
           next
         end
 

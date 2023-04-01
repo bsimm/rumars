@@ -23,20 +23,20 @@ module RuMARS
       @program = Parser.new(settings).preprocess_and_parse(program)
     end
 
-    def parse_file(file_name, settings)
+    def parse_file(file_name, settings, logger)
       @name = file_name
       begin
         file = File.read(file_name)
-      rescue IOError
-        puts "Cannot open file #{file_name}"
+      rescue Errno::ENOENT, IOError
+        logger.puts "Cannot open file #{file_name}"
         return false
       end
 
       begin
         parse(file, settings)
-        puts "File #{file_name} loaded"
+        logger.puts "File #{file_name} loaded"
       rescue Parser::ParseError => e
-        puts e
+        logger.puts e
         return false
       end
       @name = @program.name unless @program.name.empty?

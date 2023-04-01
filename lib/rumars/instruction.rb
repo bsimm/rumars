@@ -34,10 +34,11 @@ module RuMARS
     attr_accessor :pid, :opcode, :modifier, :a_operand, :b_operand, :address
 
     @debug_level = 0
+    @log = $stdout
 
     # Accessor for debug_level
     class << self
-      attr_accessor :debug_level
+      attr_accessor :debug_level, :log
     end
 
     # @param pid [Integer] PID of the Warrior this instruction belongs to. 0 means no owner.
@@ -59,7 +60,7 @@ module RuMARS
     end
 
     def log(text)
-      puts text if self.class.debug_level > 2
+      self.class.log.puts text if self.class.debug_level > 2
     end
 
     def log_update(text)

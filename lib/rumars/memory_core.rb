@@ -10,7 +10,7 @@ module RuMARS
   # addressed, the address space wraps around so that the memory appears as a
   # circular space.
   class MemoryCore
-    attr_accessor :debug_level
+    attr_accessor :debug_level, :logger
 
     COLORS = %i[silver red green yellow blue magenta cyan aqua indianred]
 
@@ -25,6 +25,7 @@ module RuMARS
       MemoryCore.size = size
       @instructions = []
       @debug_level = 0
+      @logger = $stdout
       size.times do |address|
         store(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
       end
@@ -35,7 +36,11 @@ module RuMARS
     end
 
     def log(text)
-      puts text if @debug_level > 2
+      @logger.puts text if @debug_level > 2
+    end
+
+    def instruction(address)
+      @instructions[address]
     end
 
     def load(address)
