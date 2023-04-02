@@ -12,11 +12,16 @@ module RuMARS
     def initialize(address, instruction)
       @address = address
       @instruction = instruction
+      @cycle_counter = 0
       @a_operand = nil
       @b_operand = nil
       @operation = ''
       @stores = []
       @pcs = nil
+    end
+
+    def cycle(cycle_counter)
+      @cycle_counter = cycle_counter
     end
 
     def new_a_operand
@@ -40,7 +45,7 @@ module RuMARS
     end
 
     def to_s
-      "IREG:    #{aformat(@address)}: #{@instruction}\n" \
+      "IREG:    #{aformat(@address)}: #{iformat(@instruction)} CYCLE: #{@cycle_counter}\n" \
         "A-OPERAND #{@a_operand}\n" \
         "B-OPERAND #{@b_operand}\n" \
         "OPERATION #{@operation}\n" \

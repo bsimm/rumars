@@ -17,6 +17,7 @@ module RuMARS
       @debug_level = 0
       @logger = $stdout
       @tracer = nil
+      @cycle_counter = 0
     end
 
     def log(text)
@@ -46,17 +47,17 @@ module RuMARS
     end
 
     def run(max_cycles = -1)
-      @cycles = 0
+      cycles = 0
       loop do
         step
 
-        @cycles += 1
+        cycles += 1
         # Stop if the maximum cycle number has been reached or
         # all warriors have died.
-        break if alive_warriors.zero? || (max_cycles.positive? && @cycles >= max_cycles)
+        break if alive_warriors.zero? || (max_cycles.positive? && cycles >= max_cycles)
 
         if @breakpoints.intersect?(program_counters)
-          log("Hit breakpoint at #{@breakpoints & program_counters} after #{@cycles} cycles")
+          log("Hit breakpoint at #{@breakpoints & program_counters} after #{cycles} cycles")
           break
         end
       end
@@ -64,7 +65,7 @@ module RuMARS
 
     # Run until only a single warrior is still alive
     def battle(max_cycles = -1)
-      @cycles = 0
+      cycles = 0
       # Clear screen
       print("\ec")
       loop do
@@ -73,10 +74,10 @@ module RuMARS
         step
         @memory_core.dump(program_counters)
 
-        @cycles += 1
+        cycles += 1
         break if alive_warriors == 1
 
-        if max_cycles.positive? && @cycles >= max_cycles
+        if max_cycles.positive? && cycles >= max_cycles
           log("No winner was found after #{max_cycles} cycles")
           break
         end
@@ -95,11 +96,13 @@ module RuMARS
         core_address = MemoryCore.fold(address + warrior.base_address)
         instruction = @memory_core.load(core_address)
         @tracer&.next_instruction(core_address, instruction.to_s)
+        @tracer&.cycle(@cycle_counter)
 
         # and execute it
+        @cycle_counter += 1
         unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
           if warrior.task_queue.empty?
-            log("*** Warrior #{warrior.name} has died in cycle #{@cycles} ***")
+            log("*** Warrior #{warrior.name} has died in cycle #{@cycle_counter} ***")
           else
             log("* Warrior #{warrior.name} thread of #{warrior.task_queue.length} ended *")
           end

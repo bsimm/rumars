@@ -18,7 +18,7 @@ module RuMARS
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
-    attr_reader :debug_level, :settings, :memory_core, :scheduler, :core_window, :console_window
+    attr_reader :debug_level, :settings, :memory_core, :scheduler, :core_window, :console_window, :register_window
 
     def initialize(argv = [])
       @settings = Settings.new(core_size: 8000, max_cycles: 80_000,

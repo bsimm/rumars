@@ -20,6 +20,10 @@ module RuMARS
       @current_operand = nil
     end
 
+    def cycle(cycle_counter)
+      @current_instruction.cycle(cycle_counter)
+    end
+
     def processing_a_operand
       @current_operand = @current_instruction.a_operand || @current_instruction.new_a_operand
     end
