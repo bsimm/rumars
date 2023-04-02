@@ -89,7 +89,7 @@ module RuMARS
       when 'run', 'ru'
         run(args)
       when 'step', 'st'
-        stop
+        step
       else
         puts "Unknown command: #{command}"
       end
@@ -123,7 +123,10 @@ module RuMARS
     end
 
     def step
+      # Ensure the core window centers the current program counter
       @mars.core_window.show_address = nil
+      # Ensure the register window shows the latest trace
+      @mars.register_window.trace_index = -1
       prev_debug_level = @mars.debug_level
       @mars.debug_level = 3
       @mars.scheduler.step

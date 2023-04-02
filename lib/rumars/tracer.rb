@@ -5,13 +5,15 @@ require_relative 'trace_instruction'
 module RuMARS
   class Tracer
     def initialize
-      @trace = []
+      @traces = []
       @current_instruction = nil
       @current_operand = nil
+      @max_traces = 100
     end
 
     def next_instruction(address, instruction)
-      @trace << (@current_instruction = TraceInstruction.new(address, instruction))
+      @traces.shift if @traces.length >= @max_traces
+      @traces << (@current_instruction = TraceInstruction.new(address, instruction))
     end
 
     def processing_instruction
@@ -47,8 +49,12 @@ module RuMARS
       (@current_operand || @current_instruction).log_store(address, instruction)
     end
 
-    def last
-      @trace.last
+    def trace_count
+      @traces.length
+    end
+
+    def instruction(index = -1)
+      @traces[index]
     end
   end
 end
