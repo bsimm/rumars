@@ -21,6 +21,7 @@ module RuMARS
     attr_reader :debug_level, :settings, :memory_core, :scheduler, :core_window, :console_window, :register_window
 
     def initialize(argv = [])
+      @old_stdout = nil
       @settings = Settings.new(core_size: 8000, max_cycles: 80_000,
                                max_processes: 8000, max_length: 100, min_distance: 100)
 
@@ -55,6 +56,8 @@ module RuMARS
 
     def event_loop
       @textwm.event_loop
+    ensure
+      $stdout = @old_stdout if @old_stdout
     end
 
     def cycles
@@ -97,6 +100,8 @@ module RuMARS
       @textwm.activate_window(@console_window)
 
       @scheduler.logger = @log_window
+      @old_stdout = $stdout
+      $stdout = @log_window
     end
   end
 end

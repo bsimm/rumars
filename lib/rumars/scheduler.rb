@@ -3,6 +3,8 @@
 require_relative 'warrior'
 require_relative 'memory_core'
 
+Signal.trap('SIGINT') { throw :signal_interrupt }
+
 module RuMARS
   # The scheduler manages the task queues of the warriors.
   class Scheduler
@@ -48,17 +50,19 @@ module RuMARS
 
     def run(max_cycles = -1)
       cycles = 0
-      loop do
-        step
+      catch :signal_interrupt do
+        loop do
+          step
 
-        cycles += 1
-        # Stop if the maximum cycle number has been reached or
-        # all warriors have died.
-        break if alive_warriors.zero? || (max_cycles.positive? && cycles >= max_cycles)
+          cycles += 1
+          # Stop if the maximum cycle number has been reached or
+          # all warriors have died.
+          break if alive_warriors.zero? || (max_cycles.positive? && cycles >= max_cycles)
 
-        if @breakpoints.intersect?(program_counters)
-          log("Hit breakpoint at #{@breakpoints & program_counters} after #{cycles} cycles")
-          break
+          if @breakpoints.intersect?(program_counters)
+            log("Hit breakpoint at #{@breakpoints & program_counters} after #{cycles} cycles")
+            break
+          end
         end
       end
     end

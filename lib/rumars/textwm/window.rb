@@ -30,7 +30,11 @@ module TextWM
       @width = width
       @height = height
 
-      @virt_term = VirtualTerminal.new(@width - 2, @height - 2)
+      if @virt_term
+        @virt_term.resize(@width - 2, @height - 2)
+      else
+        @virt_term = VirtualTerminal.new(@width - 2, @height - 2)
+      end
     end
 
     def update
@@ -57,7 +61,18 @@ module TextWM
       @t.show_cursor
     end
 
-    def getch(_)
+    def getch(char)
+      case char
+      when 'ArrowUp'
+        @virt_term.scroll(1)
+      when 'ArrowDown'
+        @virt_term.scroll(-1)
+      when 'PageUp'
+        @virt_term.scroll(@height - 2)
+      when 'PageDown'
+        @virt_term.scroll(-(@height - 2))
+      end
+
       true
     end
 

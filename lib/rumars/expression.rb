@@ -136,6 +136,7 @@ module RuMARS
       when String
         raise ExpressionError, "Unknown symbol #{operand}" unless symbol_table.include?(operand)
 
+        puts "#{operand}: instruction_address: #{instruction_address}  #{symbol_table[operand]}"
         symbol_table[operand].to_i - instruction_address
       when Expression
         operand.eval_recursive(symbol_table, instruction_address)

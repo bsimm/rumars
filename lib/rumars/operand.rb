@@ -33,9 +33,6 @@ module RuMARS
     end
 
     def evaluate_expressions(symbol_table, instruction_address)
-      # In direct mode we don't need to convert the label into a PC-relative value.
-      instruction_address = 0 if @address_mode == '#'
-
       @number = MemoryCore.fold(@number.eval(symbol_table, instruction_address))
     end
 
@@ -95,7 +92,8 @@ module RuMARS
     end
 
     def to_s
-      "#{@address_mode}#{@number}"
+      max_int = MemoryCore.size / 2
+      "#{@address_mode}#{@number >= max_int ? -(MemoryCore.size - @number) : @number}"
     end
 
     def deep_copy

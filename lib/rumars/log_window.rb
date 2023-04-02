@@ -13,5 +13,8 @@ module RuMARS
 
       super
     end
+
+    # Just a dummy method so we can redirect $stdout to the LogWindow.
+    def write(_, _, **_) end
   end
 end

@@ -65,7 +65,6 @@ module TextWM
 
         case c
         when 'ALT-w'
-          puts 'ALT-w pressed'
           activate_window(@windows[(@windows.index(@active_window) + 1) % @windows.size])
         when 'q'
           break
