@@ -37,7 +37,7 @@ module TextWM
           @cursor_row += 1
           @cursor_column = 0
         else
-          next if (@right_clip && @cursor_row >= @columns - 1) ||
+          next if (@right_clip && @cursor_column >= @columns - 1) ||
                   (@cursor_row >= @rows || @cursor_column >= @columns)
 
           @buffer_lines[@cursor_row][@cursor_column] = c

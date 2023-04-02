@@ -6,17 +6,19 @@ require_relative 'settings'
 require_relative 'memory_core'
 require_relative 'scheduler'
 require_relative 'warrior'
+require_relative 'tracer'
 require_relative 'textwm/textwm'
 require_relative 'core_window'
 require_relative 'log_window'
 require_relative 'console_window'
+require_relative 'register_window'
 
 module RuMARS
   # Memory Array Redcode Simulator
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
-    attr_reader :debug_level, :settings, :memory_core, :scheduler, :core_window
+    attr_reader :debug_level, :settings, :memory_core, :scheduler, :core_window, :console_window
 
     def initialize(argv = [])
       @settings = Settings.new(core_size: 8000, max_cycles: 80_000,
@@ -24,6 +26,7 @@ module RuMARS
 
       @memory_core = MemoryCore.new(@settings.core_size)
       @scheduler = Scheduler.new(@memory_core, @settings.min_distance)
+      @tracer = Tracer.new
       self.debug_level = 0
 
       @textwm = TextWM::WindowManager.new
@@ -31,7 +34,7 @@ module RuMARS
 
       # Load all the Redcode files passed via the command line.
       argv.each do |file|
-        load_warrior(file) if file[0] != '-' && file[-4..] == '.red'
+        @console_window.current_warrior = load_warrior(file) if file[0] != '-' && file[-4..] == '.red'
       end
     end
 
@@ -60,14 +63,14 @@ module RuMARS
 
     def debug_level=(level)
       @debug_level = level
-      @memory_core.debug_level = level
-      @scheduler.debug_level = level
-      Instruction.debug_level = level
+      @memory_core.tracer = level.positive? ? @tracer : nil
+      @scheduler.tracer = level.positive? ? @tracer : nil
+      Instruction.tracer = level.positive? ? @tracer : nil
     end
 
     def load_warrior(file)
       warrior = Warrior.new("Player #{@scheduler.warrior_count}")
-      return nil unless warrior.parse_file(file, @settings, @console_window)
+      return nil unless warrior.parse_file(file, @settings, @log_window)
 
       @scheduler.add_warrior(warrior)
 
@@ -86,15 +89,14 @@ module RuMARS
       vsplits.assign(1, @console_window = ConsoleWindow.new(@textwm, self))
 
       hsplits.assign(0, @core_window = CoreWindow.new(@textwm, self))
-      hsplits.assign(1, @log_window = LogWindow.new(@textwm))
+      reg_log_splits = hsplits.assign(1, TextWM::Splits.new(:vertical, 12, nil))
+      reg_log_splits.assign(0, @register_window = RegisterWindow.new(@textwm, @tracer))
+      reg_log_splits.assign(1, @log_window = LogWindow.new(@textwm))
 
       @textwm.resize
       @textwm.activate_window(@console_window)
 
-      Instruction.log = @log_window
-      @memory_core.logger = @log_window
       @scheduler.logger = @log_window
-      @scheduler.console = @console_window
     end
   end
 end

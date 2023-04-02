@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 require_relative 'textwm/window'
+require_relative 'format'
 
 module RuMARS
   class CoreWindow < TextWM::Window
     attr_accessor :show_address
+
+    include Format
 
     def initialize(textwm, mars)
       super(textwm, 'Core Window')
@@ -16,14 +19,17 @@ module RuMARS
       @virt_term.clear
       @virt_term.right_clip = @virt_term.bottom_clip = true
 
-      current_warrior = @mars.current_warrior
+      current_warrior = @mars.console_window.current_warrior
       program_counters = @mars.scheduler.program_counters(current_warrior)
+      breakpoints = @mars.scheduler.breakpoints
       find_start_address
 
       (@height - 2).times do |i|
         address = MemoryCore.fold(@show_address + i)
-        puts " #{'%04d' % address} #{program_counters.include?(address) ? '>' : ' '} " \
-             "#{'%-16s' % (current_warrior&.resolve_address(address) || '')} " \
+        breakpoint = breakpoints.include?(address) ? '*' : ' '
+        pc = program_counters.include?(address) ? '>' : ' '
+        puts " #{aformat(address)}#{breakpoint}#{pc} " \
+             "#{format('%-16s', current_warrior&.resolve_address(address) || '')} " \
              "#{@mars.memory_core.instruction(address)}"
       end
 

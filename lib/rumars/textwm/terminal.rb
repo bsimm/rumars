@@ -17,6 +17,17 @@ module TextWM
       "\e[B" => 'ArrowDown',
       "\e[C" => 'ArrowRight',
       "\e[D" => 'ArrowLeft',
+      "\eOP" => 'F1',
+      "\eOQ" => 'F2',
+      "\eOR" => 'F3',
+      "\eOS" => 'F4',
+      "\e[15~" => 'F5',
+      "\e[17~" => 'F6',
+      "\e[18~" => 'F7',
+      "\e[19~" => 'F8',
+      "\e[20~" => 'F9',
+      "\e[21~" => 'F10',
+      "\e[24~" => 'F12',
       "\ea" => 'ALT-a',
       "\eb" => 'ALT-b',
       "\ec" => 'ALT-c',
@@ -133,7 +144,7 @@ module TextWM
 
       if str == "\e"
         begin
-          str << @inp.read_nonblock(3)
+          str << @inp.read_nonblock(4)
         rescue IO::EAGAINWaitReadable
         end
       end

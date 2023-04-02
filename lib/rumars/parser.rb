@@ -84,7 +84,8 @@ module RuMARS
 
     attr_reader :file_name, :line_no, :scanner, :constants
 
-    def initialize(settings)
+    def initialize(settings, logger = $stdout)
+      @logger = logger
       @line_no = 0
       @file_name = nil
       @scanner = nil
@@ -193,7 +194,7 @@ module RuMARS
     end
 
     def scan(regexp)
-      # puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
+      # @logger.puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
       @scanner.scan(regexp)
     end
 
@@ -296,7 +297,7 @@ module RuMARS
         @program.add_strategy(text[9..])
       elsif text.start_with?('assert ')
         assert = text[7..].strip
-        parser = Parser.new({})
+        parser = Parser.new({}, @logger)
         expression = parser.parse(assert, :expr)
 
         raise ParseError.new(self, "Assert failed: #{expression}") unless expression.eval(@constants) == 1

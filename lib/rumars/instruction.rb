@@ -33,12 +33,11 @@ module RuMARS
 
     attr_accessor :pid, :opcode, :modifier, :a_operand, :b_operand, :address
 
-    @debug_level = 0
-    @log = $stdout
+    @tracer = nil
 
-    # Accessor for debug_level
+    # Accessor for @tracer
     class << self
-      attr_accessor :debug_level, :log
+      attr_accessor :tracer
     end
 
     # @param pid [Integer] PID of the Warrior this instruction belongs to. 0 means no owner.
@@ -59,32 +58,23 @@ module RuMARS
       @b_operand = b_operand
     end
 
-    def log(text)
-      self.class.log.puts text if self.class.debug_level > 2
-    end
-
-    def log_update(text)
-      puts "Updated #{text} of #{@address ? '%04d' % @address : 'XXXX'}: #{self}" if self.class.debug_level > 2
-    end
-
     def a_number
       @a_operand&.number
     end
 
     def a_number=(number)
       @a_operand.number = number
-      log_update('A-Number')
     end
 
     def increment_a_number
       n = @a_operand.number = MemoryCore.fold(a_number + 1)
-      log_update('A-Number')
+      self.class.tracer&.log_store(@address, to_s)
       n
     end
 
     def decrement_a_number
       n = @a_operand.number = MemoryCore.fold(a_number - 1)
-      log_update('A-Number')
+      self.class.tracer&.log_store(@address, to_s)
       n
     end
 
@@ -94,18 +84,17 @@ module RuMARS
 
     def b_number=(number)
       @b_operand.number = number
-      log_update('B-Number')
     end
 
     def increment_b_number
       n = @b_operand.number = MemoryCore.fold(b_number + 1)
-      log_update('B-Number')
+      self.class.tracer&.log_store(@address, to_s)
       n
     end
 
     def decrement_b_number
       n = @b_operand.number = MemoryCore.fold(b_number - 1)
-      log_update('B-Number')
+      self.class.tracer&.log_store(@address, to_s)
       n
     end
 
@@ -117,22 +106,25 @@ module RuMARS
     def execute(memory_core, program_counter, pid, base_address)
       bus = InstructionBus.new(memory_core, base_address, program_counter, @modifier, pid)
 
+      # Prepare the A-Operand
+      self.class.tracer&.processing_a_operand
       bus.a_operand = @a_operand.evaluate(bus)
       bus.a_operand.instruction = bus.a_operand.instruction.deep_copy
-      bus.b_operand = @b_operand.evaluate(bus)
-      log("A-operand: #{bus.a_operand}")
-      log("B-operand: #{bus.b_operand}")
+      self.class.tracer&.log_operand(bus.a_operand)
 
-      log("Executing #{"%04d" % @address} #{self}")
+      # Prepare the B-Operand
+      self.class.tracer&.processing_b_operand
+      bus.b_operand = @b_operand.evaluate(bus)
+      self.class.tracer&.log_operand(bus.b_operand)
+
+      self.class.tracer&.processing_instruction
       next_pc = [program_counter + 1]
 
       case @opcode
       when 'ADD'
         arith('+', bus)
-      when 'CMP'
-        # Alias for SEQ. Not included in ICWS-94 standard draft
-        next_pc = seq(bus)
       when 'DAT'
+        self.class.tracer&.operation("Terminating current thread")
         next_pc = nil
       when 'DIV'
         begin
@@ -160,7 +152,7 @@ module RuMARS
         arith('*', bus)
       when 'NOP'
         # Do nothing
-      when 'SEC'
+      when 'SEQ', 'CMP'
         next_pc = seq(bus)
       when 'SNE'
         next_pc = sne(bus)
@@ -174,7 +166,9 @@ module RuMARS
         raise "Unknown opcode #{@opcode} at address #{program_counter}"
       end
 
+      self.class.tracer&.processing_a_operand
       @a_operand.post_increment(bus, bus.a_operand)
+      self.class.tracer&.processing_b_operand
       @b_operand.post_increment(bus, bus.b_operand)
 
       next_pc
@@ -225,23 +219,23 @@ module RuMARS
       case operator
       when '+'
         result = MemoryCore.fold(op1 + op2)
-        log("Computing #{op1} + #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{op1} + #{op2} = #{result}")
       when '-'
         result = MemoryCore.fold(op1 - op2)
-        log("Computing #{op1} - #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{op1} - #{op2} = #{result}")
       when '*'
         result = MemoryCore.fold(op1 * op2)
-        log("Computing #{op1} * #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{op1} * #{op2} = #{result}")
       when '/'
         raise DivBy0Error if op2.zero?
 
         result = op1 / op2
-        log("Computing #{op1} / #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{op1} / #{op2} = #{result}")
       when '%'
         raise DivBy0Error if op2.zero?
 
         result = op1 % op2
-        log("Computing #{op1} % #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{op1} % #{op2} = #{result}")
       else
         raise ArgumentError, "Unknown operator #{operator}"
       end
@@ -259,16 +253,16 @@ module RuMARS
       case @modifier
       when 'A', 'BA'
         irb.decrement_a_number
-        log("Jumping if irb A-Number (#{irb.a_number}) != 0")
+        self.class.tracer&.operation("Jumping if irb A-Number (#{irb.a_number}) != 0")
         return next_pc unless irb.a_number.zero?
       when 'B', 'AB'
         irb.decrement_b_number
-        log("Jumping if irb B-Number (#{irb.b_number}) != 0")
+        self.class.tracer&.operation("Jumping if irb B-Number (#{irb.b_number}) != 0")
         return next_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         irb.decrement_a_number
         irb.decrement_b_number
-        log("Jumping if not (irb A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0)")
+        self.class.tracer&.operation("Jumping if not (irb A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0)")
         return next_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -281,7 +275,9 @@ module RuMARS
       rpa = bus.a_operand.pointer
 
       # Return a PC-relative jump destination address
-        [MemoryCore.fold(bus.program_counter + rpa)]
+      next_pc = MemoryCore.fold(bus.program_counter + rpa)
+      self.class.tracer&.operation("Jumping to #{next_pc}")
+      [next_pc]
     end
 
     def jmz(bus)
@@ -293,14 +289,14 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
-        log("Jumping if irb A-Number (#{irb.a_number}) == 0")
+        self.class.tracer&.operation("Jumping if irb A-Number (#{irb.a_number}) == 0")
         return jump_pc if irb.a_number.zero?
       when 'B', 'AB'
-        log("Jumping to #{jump_pc} if irb B-Number (#{irb.b_number}) == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc} if irb B-Number (#{irb.b_number}) == 0")
         return jump_pc if irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump of both of the fields are zero
-        log("Jumping if ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
+        self.class.tracer&.operation("Jumping if ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
         return jump_pc if irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -317,14 +313,14 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
-        log("Jumping if irb A-Number (#{irb.a_number}) != 0")
+        self.class.tracer&.operation("Jumping if irb A-Number (#{irb.a_number}) != 0")
         return jump_pc unless irb.a_number.zero?
       when 'B', 'AB'
-        log("Jumping if irb B-Number (#{irb.b_number}) != 0")
+        self.class.tracer&.operation("Jumping if irb B-Number (#{irb.b_number}) != 0")
         return jump_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump if either of the fields are zero
-        log("Jumping unless ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
+        self.class.tracer&.operation("Jumping unless ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
         return jump_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -340,27 +336,28 @@ module RuMARS
 
       case @modifier
       when 'A'
-        # Replaces A-number with A-number
+        self.class.tracer&.operation('Replacing B operand A-Number with A operand A-Number')
         irb.a_number = ira.a_number
       when 'B'
-        # Replaces B-number with B-number
+        self.class.tracer&.operation('Replacing B operand B-Number with A operand B-Number')
         irb.b_number = ira.b_number
       when 'AB'
-        # Replaces B-number with A-number
+        self.class.tracer&.operation('Replacing B operand B-Number with A operand A-Number')
         irb.b_number = ira.a_number
       when 'BA'
-        # Replaces A-number with B-number
+        self.class.tracer&.operation('Replacing B operand A-Number with A operand B-Number')
         irb.a_number = ira.b_number
       when 'F'
-        # Replaces A-number with A-number and B-number with B-number
+        self.class.tracer&.operation('Repl. B op A-Num with A op A-Num and B op B-Num with A op B-Num')
         irb.a_number = ira.a_number
         irb.b_number = ira.b_number
       when 'X'
-        # Replaces B-number with A-number and A-number with B-number
+        self.class.tracer&.operation('Repl. B op A-Num with A op B-Num and B op B-Num with A op A-Num')
         irb.a_number = ira.b_number
         irb.b_number = ira.a_number
       when 'I'
         # Copies entire instruction
+        self.class.tracer&.operation('Copy A instruction into B instruction')
         bus.memory_core.store_relative(bus.base_address, bus.program_counter, wpb, ira).deep_copy
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -378,27 +375,27 @@ module RuMARS
 
       case @modifier
       when 'A'
-        log("Jumping if ira A-Number (#{ira.a_number}) == irb A-Number (#{irb.a_number})")
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) == irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number == irb.a_number
       when 'B'
-        log("Jumping if ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
         return next2_pc if ira.b_number == irb.b_number
       when 'AB'
-        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number})")
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number == irb.b_number
       when 'BA'
-        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
         return next2_pc if ira.b_number == irb.a_number
       when 'F'
-        log("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number}) &&" \
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number}) &&" \
             "ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number == irb.a_number && ira.b_number == irb.b_number
       when 'X'
-        log("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number}) &&" \
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number}) &&" \
             "ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number == irb.b_number && ira.b_number == irb.a_number
       when 'I'
-        log("Jumping if ira (#{ira}) == irb (#{irb})")
+        self.class.tracer&.operation("Jumping if ira (#{ira}) == irb (#{irb})")
         return next2_pc if ira == irb
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -415,27 +412,27 @@ module RuMARS
 
       case @modifier
       when 'A'
-        log("Jumping if ira A-Number (#{ira.a_number}) != irb A-Number (#{irb.a_number})")
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) != irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number != irb.a_number
       when 'B'
-        log("Jumping if ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
         return next2_pc if ira.b_number != irb.b_number
       when 'AB'
-        log("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number})")
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number != irb.b_number
       when 'BA'
-        log("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
         return next2_pc if ira.b_number != irb.a_number
       when 'F'
-        log("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number}) &&" \
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number}) &&" \
             "ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number != irb.a_number && ira.b_number != irb.b_number
       when 'X'
-        log("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number}) &&" \
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number}) &&" \
             "ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number != irb.b_number && ira.b_number != irb.a_number
       when 'I'
-        log("Jumping if ira (#{ira}) != irb (#{irb})")
+        self.class.tracer&.operation("Jumping if ira (#{ira}) != irb (#{irb})")
         return next2_pc if ira != irb
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -452,16 +449,24 @@ module RuMARS
 
       case @modifier
       when 'A'
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) < irb A-Number (#{irb.a_number})")
         return jump_pc if ira.a_number < irb.a_number
       when 'B'
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) < irb B-Number (#{irb.b_number})")
         return jump_pc if ira.b_number < irb.b_number
       when 'AB'
+        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) < irb B-Number (#{irb.b_number})")
         return jump_pc if ira.a_number < irb.b_number
       when 'BA'
+        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) < irb A-Number (#{irb.a_number})")
         return jump_pc if ira.b_number < irb.a_number
       when 'F', 'I'
+        self.class.tracer&.operation("Jumping if ira A-Num (#{ira.a_number}) < irb A-Num (#{irb.a_number}) &&" \
+                                     "ira B-Num (#{ira.b_number}) < irb B-Num (#{irb.b_number})")
         return jump_pc if ira.a_number < irb.a_number && ira.b_number < irb.b_number
       when 'X'
+        self.class.tracer&.operation("Jumping if ira A-Num (#{ira.a_number}) < irb B-Num (#{irb.b_number}) &&" \
+                                     "ira B-Num (#{ira.b_number}) < irb A-Num (#{irb.a_number})")
         return jump_pc if ira.a_number < irb.b_number && ira.b_number < irb.a_number
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -473,9 +478,11 @@ module RuMARS
     def spl(bus)
       rpa = bus.a_operand.pointer
 
+      next_pc = MemoryCore.fold(bus.program_counter + rpa)
+      self.class.tracer&.operation("Forking to #{next_pc}")
       # Fork off another thread. One thread continues at the next instruction, the other at
       # the A-Pointer.
-      [bus.program_counter + 1, MemoryCore.fold(bus.program_counter + rpa)]
+      [bus.program_counter + 1, next_pc]
     end
   end
 end

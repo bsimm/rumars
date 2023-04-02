@@ -6,9 +6,8 @@ require_relative 'memory_core'
 module RuMARS
   # The scheduler manages the task queues of the warriors.
   class Scheduler
-    attr_reader :cycles
-    attr_accessor :debug_level
-    attr_accessor :logger, :console
+    attr_reader :cycles, :breakpoints
+    attr_accessor :debug_level, :tracer, :logger
 
     def initialize(memory_core, min_distance)
       @memory_core = memory_core
@@ -17,22 +16,18 @@ module RuMARS
       @breakpoints = []
       @debug_level = 0
       @logger = $stdout
-      @console = $stdout
+      @tracer = nil
     end
 
     def log(text)
-      @logger.puts text if @debug_level.positive?
-    end
-
-    def console(text)
-      @console.puts(text)
+      @logger.puts text
     end
 
     def add_warrior(warrior)
       raise ArgumentError, 'Warrior is already known' if @warriors.include?(warrior)
 
       unless (base_address = find_base_address(warrior.size))
-        console 'No more space in core memory to load another warrior'
+        log('No more space in core memory to load another warrior')
       end
 
       @warriors << warrior
@@ -61,7 +56,7 @@ module RuMARS
         break if alive_warriors.zero? || (max_cycles.positive? && @cycles >= max_cycles)
 
         if @breakpoints.intersect?(program_counters)
-          console "Hit breakpoint at #{@breakpoints & program_counters} after #{@cycles} cycles"
+          log("Hit breakpoint at #{@breakpoints & program_counters} after #{@cycles} cycles")
           break
         end
       end
@@ -82,7 +77,7 @@ module RuMARS
         break if alive_warriors == 1
 
         if max_cycles.positive? && @cycles >= max_cycles
-          console "No winner was found after #{max_cycles} cycles"
+          log("No winner was found after #{max_cycles} cycles")
           break
         end
       end
@@ -94,15 +89,21 @@ module RuMARS
         # Skip dead Warriors
         next unless warrior.alive?
 
-        log("PCs: #{program_counters}")
         # Pull next PC from task queue
         address = warrior.next_task
         # Load instruction
-        instruction = @memory_core.load(MemoryCore.fold(address + warrior.base_address))
+        core_address = MemoryCore.fold(address + warrior.base_address)
+        instruction = @memory_core.load(core_address)
+        @tracer&.next_instruction(core_address, instruction.to_s)
+
         # and execute it
-        log("Executing instruction #{'%04d' % address}: #{instruction}")
         unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
-          console "*** Warrior #{warrior.name} has died in cycle #{@cycles} ***" if warrior.task_queue.empty?
+          if warrior.task_queue.empty?
+            log("*** Warrior #{warrior.name} has died in cycle #{@cycles} ***")
+          else
+            log("* Warrior #{warrior.name} thread of #{warrior.task_queue.length} ended *")
+          end
+          @tracer&.program_counters(warrior.task_queue)
           next
         end
 
@@ -113,6 +114,7 @@ module RuMARS
 
         log("New thread started at #{pics[1]}") if pics.length > 1
 
+        @tracer&.program_counters(warrior.task_queue)
         if (next_pc = warrior.task_queue.last) != MemoryCore.fold(address + 1)
           log("Jumped to #{'%04d' % next_pc}: #{@memory_core.load(next_pc)}")
         end
@@ -133,12 +135,12 @@ module RuMARS
       pcs
     end
 
-    def add_breakpoint(address)
-      @breakpoints << address unless @breakpoints.include?(address)
-    end
-
-    def delete_breakpoint(address)
-      @breakpoints.delete(address)
+    def toggle_breakpoint(address)
+      if @breakpoints.include?(address)
+        @breakpoints.delete(address)
+      else
+        @breakpoints << address
+      end
     end
 
     private

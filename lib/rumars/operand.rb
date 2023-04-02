@@ -19,7 +19,7 @@ module RuMARS
       end
 
       def to_s
-        "pointer: #{@pointer}  instruction: #{@instruction}  post_inc_inst: #{@post_inc_inst}"
+        "pointer: #{@pointer}  instruction: #{@instruction}  post_inc_inst: #{@post_incr_instr}"
       end
     end
 

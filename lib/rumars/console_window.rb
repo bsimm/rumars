@@ -4,7 +4,7 @@ require_relative 'textwm/window'
 
 module RuMARS
   class ConsoleWindow < TextWM::Window
-    attr_reader :current_warrior
+    attr_accessor :current_warrior
 
     def initialize(textwm, mars)
       super(textwm, 'Console Window')
@@ -38,10 +38,18 @@ module RuMARS
           @command = @command[0..-2]
           @virt_term.backspace
         end
+      when 'F2'
+        toggle_breakpoint
+      when 'F8'
+        step
+      when 'F9'
+        run([])
       else
         if char.length == 1
           @command += char
           print char
+        else
+          print "[#{char.gsub(/\e/, '\e')}]"
         end
       end
 
@@ -61,7 +69,7 @@ module RuMARS
       when 'battle', 'ba'
         @mars.scheduler.battle
       when 'break', 'br'
-        add_breakpoint(args)
+        toggle_breakpoint(args)
       when 'debug'
         @mars.debug_level = args.first&.to_i || 0
       when 'dump', 'du'
@@ -79,16 +87,9 @@ module RuMARS
       when 'pcs'
         list_program_counters
       when 'run', 'ru'
-        @mars.core_window.show_address = nil
-        @mars.scheduler.run(args.first&.to_i || -1)
+        run(args)
       when 'step', 'st'
-        @mars.core_window.show_address = nil
-        prev_debug_level = @mars.debug_level
-        @mars.debug_level = 3
-        @mars.scheduler.step
-        @mars.debug_level = prev_debug_level
-      when 'unbreak', 'un'
-        @mars.scheduler.delete_breakpoint(args.first&.to_i)
+        stop
       else
         puts "Unknown command: #{command}"
       end
@@ -103,7 +104,7 @@ module RuMARS
       end
 
       files.each do |file|
-        @mars.load_warrior(file)
+        @current_warrior = @mars.load_warrior(file)
       end
     end
 
@@ -118,36 +119,42 @@ module RuMARS
     def list_program_counters
       return unless @current_warrior
 
-      puts @scheduler.program_counters(@current_warrior).join(' ')
+      puts @mars.scheduler.program_counters(@current_warrior).join(' ')
     end
-    def add_breakpoint(breakpoints)
-      if breakpoints.empty?
-        puts 'You must specify a memory core address or a label name to set a breakpoint'
-        return
-      end
 
-      breakpoints.each do |breakpoint|
-        if (address = resolve_label(breakpoint))
-          @mars.scheduler.add_breakpoint(address)
+    def step
+      @mars.core_window.show_address = nil
+      prev_debug_level = @mars.debug_level
+      @mars.debug_level = 3
+      @mars.scheduler.step
+      @mars.debug_level = prev_debug_level
+    end
+
+    def run(args)
+      @mars.core_window.show_address = nil
+      @mars.scheduler.run(args.first&.to_i || -1)
+    end
+
+    def toggle_breakpoint(breakpoints = [])
+      if breakpoints.empty?
+        unless (pc = @mars.scheduler.program_counters(@current_warrior).first)
+          puts 'You must specify a memory core address or a label name to set a breakpoint'
+          return
         end
-      end
-    end
-
-    def remove_breakpoint(breakpoints)
-      if breakpoints.empty?
-        puts 'You must specify a memory core address or a label name to set a breakpoint'
-        return
+        breakpoints = [pc]
       end
 
       breakpoints.each do |breakpoint|
         if (address = resolve_label(breakpoint))
-          @mars.scheduler.remove_breakpoint(address)
+          @mars.scheduler.toggle_breakpoint(address)
         end
       end
     end
 
     def resolve_label(label_or_address)
       case label_or_address
+      when Integer
+        return label_or_address
       when /\A\d+\z/
         if (address = label_or_address.to_i) >= MemoryCore.size
           puts "Breakpoint address #{address} must be between 0 and #{MemoryCore.size - 1}"

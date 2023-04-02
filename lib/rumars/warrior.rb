@@ -19,8 +19,8 @@ module RuMARS
       @pid = nil
     end
 
-    def parse(program, settings)
-      @program = Parser.new(settings).preprocess_and_parse(program)
+    def parse(program, settings, logger)
+      @program = Parser.new(settings, logger).preprocess_and_parse(program)
     end
 
     def parse_file(file_name, settings, logger)
@@ -33,7 +33,7 @@ module RuMARS
       end
 
       begin
-        parse(file, settings)
+        parse(file, settings, logger)
         logger.puts "File #{file_name} loaded"
       rescue Parser::ParseError => e
         logger.puts e

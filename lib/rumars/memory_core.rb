@@ -10,7 +10,7 @@ module RuMARS
   # addressed, the address space wraps around so that the memory appears as a
   # circular space.
   class MemoryCore
-    attr_accessor :debug_level, :logger
+    attr_accessor :tracer
 
     COLORS = %i[silver red green yellow blue magenta cyan aqua indianred]
 
@@ -24,8 +24,7 @@ module RuMARS
     def initialize(size = 8000)
       MemoryCore.size = size
       @instructions = []
-      @debug_level = 0
-      @logger = $stdout
+      @tracer = nil
       size.times do |address|
         store(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
       end
@@ -33,10 +32,6 @@ module RuMARS
 
     def self.fold(address)
       (MemoryCore.size + address) % MemoryCore.size
-    end
-
-    def log(text)
-      @logger.puts text if @debug_level > 2
     end
 
     def instruction(address)
@@ -66,13 +61,13 @@ module RuMARS
     def load_relative(base_address, program_counter, address)
       core_address = MemoryCore.fold(base_address + program_counter + address)
       instruction = load(core_address)
-      log("Loading #{'%04d' % core_address}: #{instruction}")
+      @tracer&.log_load(core_address, instruction.to_s)
       instruction
     end
 
     def store_relative(base_address, program_counter, address, instruction)
       core_address = MemoryCore.fold(base_address + program_counter + address)
-      log("Storing #{'%04d' % core_address}: #{instruction}")
+      @tracer&.log_store(core_address, instruction.to_s)
       store(core_address, instruction)
     end
 
