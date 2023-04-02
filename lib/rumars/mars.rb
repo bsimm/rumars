@@ -8,6 +8,7 @@ require_relative 'scheduler'
 require_relative 'warrior'
 require_relative 'tracer'
 require_relative 'textwm/textwm'
+require_relative 'textwm/button_row'
 require_relative 'core_window'
 require_relative 'log_window'
 require_relative 'console_window'
@@ -87,9 +88,10 @@ module RuMARS
     private
 
     def setup_windows
-      vsplits = @textwm.split(:vertical, nil, 10)
-      hsplits = vsplits.assign(0, TextWM::Splits.new(:horizontal, 0.5, nil))
+      vsplits = @textwm.split(:vertical, nil, 10, 1)
+      hsplits = vsplits.assign(0, TextWM::Splits.new(:horizontal, 50, nil))
       vsplits.assign(1, @console_window = ConsoleWindow.new(@textwm, self))
+      vsplits.assign(2, TextWM::ButtonRow.new(@textwm))
 
       hsplits.assign(0, @core_window = CoreWindow.new(@textwm, self))
       reg_log_splits = hsplits.assign(1, TextWM::Splits.new(:vertical, 12, nil))

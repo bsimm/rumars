@@ -18,6 +18,7 @@ module TextWM
       @splits = nil
       @windows = []
       @active_window = nil
+      @decorations = []
     end
 
     def resize
@@ -39,6 +40,10 @@ module TextWM
       activate_window(window)
     end
 
+    def register_decoration(decoration)
+      @decorations << decoration
+    end
+
     def activate_window(window)
       raise 'Unknown window' unless @windows.include?(window)
 
@@ -50,6 +55,7 @@ module TextWM
 
     def update_windows
       @windows.each { |window| window.update }
+      @decorations.each { |decoration| decoration.update }
 
       @active_window.show_cursor
     end
@@ -64,7 +70,9 @@ module TextWM
         end
 
         case c
-        when 'ALT-w'
+        when 'F5'
+          activate_window(@windows[(@windows.size + @windows.index(@active_window) - 1) % @windows.size])
+        when 'F6'
           activate_window(@windows[(@windows.index(@active_window) + 1) % @windows.size])
         when 'q'
           break

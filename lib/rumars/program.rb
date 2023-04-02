@@ -60,7 +60,6 @@ module RuMARS
       # Resolve the start address
       @start_address = @start_address.eval(@labels, 0) unless @start_address.is_a?(Integer)
 
-      puts "Evaluation started"
       @instructions.each_with_index do |instruction, address|
         begin
           instruction.evaluate_expressions(@labels, address)
@@ -68,7 +67,6 @@ module RuMARS
           raise Expression::ExpressionError, instruction.to_s
         end
       end
-      puts "Evaluation finished"
     end
 
     def resolve_address(address)

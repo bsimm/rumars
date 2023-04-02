@@ -17,11 +17,11 @@ module RuMARS
       @current_warrior = nil
 
       @command = ''
+      prompt
     end
 
     def resize(col, row, width, height)
       super
-      prompt
     end
 
     def getch(char)
@@ -45,11 +45,11 @@ module RuMARS
       when 'F9'
         run([])
       else
-        if char.length == 1
+        if char.length == 1 && char.ord >= 32
           @command += char
           print char
-        else
-          print "[#{char.gsub(/\e/, '\e')}]"
+        # else
+        #  print "[#{char.gsub(/\e/, '\e')}]"
         end
       end
 

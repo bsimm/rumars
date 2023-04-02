@@ -20,6 +20,7 @@ module TextWM
       @name = name
       @col = @row = @width = @height = nil
 
+      @virt_term = VirtualTerminal.new(1, 1)
       @active = false
       @show_cursor = false
     end
@@ -30,11 +31,7 @@ module TextWM
       @width = width
       @height = height
 
-      if @virt_term
-        @virt_term.resize(@width - 2, @height - 2)
-      else
-        @virt_term = VirtualTerminal.new(@width - 2, @height - 2)
-      end
+      @virt_term.resize(@width - 2, @height - 2)
     end
 
     def update

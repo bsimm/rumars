@@ -34,7 +34,7 @@ module TextWM
 
       @cursor_column -= 1
       line = @buffer_lines[@cursor_row]
-      @buffer_lines[@cursor_row] = line[0..@cursor_column - 1] + line[@cursor_column..]
+      @buffer_lines[@cursor_row] = line[0..@cursor_column - 1] + line[@cursor_column + 1..]
     end
 
     def resize(columns, rows)
