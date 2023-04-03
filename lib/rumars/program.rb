@@ -43,19 +43,6 @@ module RuMARS
       true
     end
 
-    def load_into_core(base_address, memory_core, pid)
-      address = base_address
-
-      @instructions.each do |instruction|
-        instruction_copy = instruction.deep_copy
-        instruction_copy.address = address
-        instruction_copy.pid = pid
-        memory_core.store(address, instruction_copy)
-
-        address = (address + 1) % MemoryCore.size
-      end
-    end
-
     def evaluate_expressions
       # Resolve the start address
       @start_address = @start_address.eval(@labels, 0) unless @start_address.is_a?(Integer)

@@ -4,5 +4,4 @@
 require "bundler/setup"
 require "rumars"
 
-mars = RuMARS::MARS.new(ARGV)
-mars.event_loop
+RuMARS::MARS.new(ARGV).main

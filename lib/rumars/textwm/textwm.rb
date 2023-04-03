@@ -10,8 +10,8 @@ module TextWM
   class WindowManager
     attr_reader :terminal
 
-    def initialize
-      @terminal = Terminal.new
+    def initialize(out, inp)
+      @terminal = Terminal.new(out, inp)
       @terminal.reset
       @terminal.clear
 

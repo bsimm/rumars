@@ -21,11 +21,13 @@ module RuMARS
       attr_accessor :size
     end
 
-    def initialize(size = 8000)
-      MemoryCore.size = size
+    def initialize(settings)
+      @settings = settings
+      MemoryCore.size = @settings[:core_size]
       @instructions = []
+      @warriors = []
       @tracer = nil
-      size.times do |address|
+      MemoryCore.size.times do |address|
         store(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
       end
     end
@@ -36,6 +38,30 @@ module RuMARS
 
     def instruction(address)
       @instructions[address]
+    end
+
+    def load_warrior(warrior)
+      # Make sure the warrior has a valid program
+      return nil unless warrior.program
+
+      return nil unless (base_address = find_base_address(warrior.size))
+
+      @warriors << warrior
+
+      address = base_address
+      # The program ID is the index in the loaded warrior list (+1).
+      pid = @warriors.length
+      warrior.program.instructions.each do |instruction|
+        instruction_copy = instruction.deep_copy
+        instruction_copy.address = address
+        instruction_copy.pid = pid
+        store(address, instruction_copy)
+
+        address = MemoryCore.fold(address + 1)
+      end
+      warrior.restart(base_address, pid)
+
+      base_address
     end
 
     def load(address)
@@ -110,6 +136,42 @@ module RuMARS
       else
         '?'
       end
+    end
+
+    def find_base_address(size)
+      # The first warrior is always loaded to absolute address 0.
+      return 0 if @warriors.empty?
+
+      i = 0
+      loop do
+        address = rand(MemoryCore.size)
+
+        return address unless too_close_to_other_warriors?(address, address + size)
+
+        if (i += 1) > 1000
+          return nil
+        end
+      end
+    end
+
+    def too_close_to_other_warriors?(start_address, end_address)
+      # All warriors must fit into the core without wrapping around.
+      return true if end_address >= MemoryCore.size
+
+      @warriors.each do |warrior|
+        # Ignore warriors that have not been loaded yet
+        next unless warrior.base_address
+
+        warrior_zone_start = warrior.base_address - @settings.min_distance
+        warrior_zone_end = warrior.base_address + warrior.size + @settings.min_distance
+
+        if (start_address >= warrior_zone_start && start_address <= warrior_zone_end) ||
+           (end_address >= warrior_zone_start && end_address <= warrior_zone_end)
+          return true
+        end
+      end
+
+      false
     end
   end
 end

@@ -40,6 +40,8 @@ module RuMARS
         end
       when 'F2'
         toggle_breakpoint
+      when 'F7'
+        restart
       when 'F8'
         step
       when 'F9'
@@ -86,6 +88,8 @@ module RuMARS
         load_warriors(args)
       when 'pcs'
         list_program_counters
+      when 'restart', 're'
+        restart
       when 'run', 'ru'
         run(args)
       when 'step', 'st'
@@ -152,6 +156,11 @@ module RuMARS
           @mars.scheduler.toggle_breakpoint(address)
         end
       end
+    end
+
+    def restart
+      @mars.restart
+      @mars.reload_warriors_into_core
     end
 
     def resolve_label(label_or_address)

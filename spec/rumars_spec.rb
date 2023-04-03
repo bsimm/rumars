@@ -1,20 +1,27 @@
 # frozen_string_literal: true
 
 require_relative '../lib/rumars/mars'
+require_relative '../lib/rumars/mocked_keyboard'
+require_relative '../lib/rumars/vt100'
 
 RSpec.describe RuMARS::MARS do
+  before(:each) do
+    @mars = RuMARS::MARS.new(%w[coresize 400])
+    @warrior = RuMARS::Warrior.new('Test')
+    @log = StringIO.new
+    @mars.scheduler.logger = @log
+  end
+
   it 'should execute the Imp program' do
-    mars = RuMARS::MARS.new
-    warrior = RuMARS::Warrior.new('Imp')
     prg = <<~"PRG"
       ;redcode-94
             mov +0, +1
             end
     PRG
-    warrior.parse(prg, mars.settings)
-    mars.add_warrior(warrior)
-    mars.run(80)
-    expect(mars.cycles).to eql(80)
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(80)
+    expect(@mars.cycles).to eql(80)
   end
 
   it 'should execute the Dwarf program' do
@@ -28,12 +35,10 @@ RSpec.describe RuMARS::MARS do
             end
     PRG
 
-    mars = RuMARS::MARS.new
-    warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg, mars.settings)
-    mars.add_warrior(warrior)
-    mars.run(4)
-    expect(mars.cycles).to eql(4)
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(4)
+    expect(@mars.cycles).to eql(4)
   end
 
   it 'should properly support in-register evaluation' do
@@ -50,12 +55,10 @@ RSpec.describe RuMARS::MARS do
             end
     PRG
 
-    mars = RuMARS::MARS.new
-    warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg, mars.settings)
-    mars.add_warrior(warrior)
-    mars.run(10)
-    expect(mars.cycles).to eql(10)
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(10)
+    expect(@mars.cycles).to eql(10)
   end
 
   it 'should use the addressing modes correctly' do
@@ -108,12 +111,10 @@ RSpec.describe RuMARS::MARS do
             end
     PRG
 
-    mars = RuMARS::MARS.new
-    warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg, mars.settings)
-    mars.add_warrior(warrior)
-    mars.run(20)
-    expect(mars.cycles).to eql(20)
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(20)
+    expect(@mars.cycles).to eql(20)
   end
 
   it 'should be ICWS88-standard compliant' do
@@ -237,13 +238,11 @@ RSpec.describe RuMARS::MARS do
               end start
     PRG
 
-    mars = RuMARS::MARS.new
-    mars.settings.max_length = 100
-    warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg, mars.settings)
-    mars.add_warrior(warrior)
-    mars.run(200)
-    expect(mars.cycles).to eql(200)
+    @mars.settings.max_length = 100
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(200)
+    expect(@mars.cycles).to eql(200)
   end
 
   it 'should support ICWS-94 style immediates' do
@@ -253,12 +252,10 @@ RSpec.describe RuMARS::MARS do
             MOV.I  #1234, 1
     PRG
 
-    mars = RuMARS::MARS.new
-    mars.settings.max_processes = 8
-    warrior = RuMARS::Warrior.new('Imp')
-    warrior.parse(prg, mars.settings)
-    mars.add_warrior(warrior)
-    mars.run(100)
-    expect(mars.cycles).to eql(100)
+    @mars.settings.max_processes = 8
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(100)
+    expect(@mars.cycles).to eql(100)
   end
 end

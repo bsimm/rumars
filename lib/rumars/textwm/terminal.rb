@@ -83,7 +83,11 @@ module TextWM
     def size
       lincol =
         if @out.respond_to?('winsize')
-          @out.winsize
+          begin
+            @out.winsize
+          rescue Errno::ENOTTY
+            return [80, 40]
+          end
         else
           IO.console.winsize
         end
@@ -203,7 +207,7 @@ module TextWM
 
     def send(sequence)
       @out.print sequence
-      @out.flush
+      @out.flush if @out.respond_to?(:flush)
     end
 
     def receive

@@ -7,56 +7,71 @@ module RuMARS
   # programs fight against each other by trying to destroy the other
   # programs.
   class Warrior
-    attr_reader :task_queue, :base_address, :name, :program
-    attr_accessor :pid, :max_tasks
+    attr_reader :task_queue, :base_address, :name, :program, :pid
+    attr_accessor :max_tasks, :file_name
 
     def initialize(name)
-      @task_queue = [0]
+      @task_queue = []
       @max_tasks = 800
       @name = name
+      @file_name = nil
       @program = nil
       @base_address = nil
       @pid = nil
     end
 
-    def parse(program, settings, logger)
-      @program = Parser.new(settings, logger).preprocess_and_parse(program)
+    def parse(redcode, settings, logger)
+      begin
+        @program = Parser.new(settings, logger).preprocess_and_parse(redcode)
+
+        if @program.size.zero?
+          @program = nil
+          logger.puts "No valid redcode found in file #{@file_name}"
+          return false
+        end
+      rescue Parser::ParseError => e
+        logger.puts e
+        return false
+      end
+
+      @name = @program.name unless @program.name.empty?
     end
 
     def parse_file(file_name, settings, logger)
-      @name = file_name
+      @file_name = file_name
+
       begin
-        file = File.read(file_name)
+        redcode = File.read(file_name)
       rescue Errno::ENOENT, IOError
         logger.puts "Cannot open file #{file_name}"
         return false
       end
 
-      begin
-        parse(file, settings, logger)
-        logger.puts "File #{file_name} loaded"
-      rescue Parser::ParseError => e
-        logger.puts e
-        return false
+      if parse(redcode, settings, logger)
+        logger.puts "Redcode file #{file_name} loaded"
+        return true
       end
-      @name = @program.name unless @program.name.empty?
 
-      true
+      false
     end
 
-    # Load the program of the warrior into the core memory at the given
-    # absolute core memory base address.
+    # Notify the warrior that it was reloaded into the core at a new address
+    # and with a new pid. Load the task queue with the program start address.
     # @param [Integer] base_address
-    # @param [MemoryCore] memory_core
-    def load_program(base_address, memory_core)
-      raise 'No program available for loading' unless @program
-
+    # @param [Integer] pid
+    def restart(base_address, pid)
       @base_address = base_address
-      @program.load_into_core(base_address, memory_core, @pid)
+      @pid = pid
 
       # Load the program start address into the task queue. We always start with
       # a single thread.
       @task_queue = [@program.start_address]
+    end
+
+    def unload_program
+      @base_address = nil
+      @pid = nil
+      @task_queue = []
     end
 
     def size

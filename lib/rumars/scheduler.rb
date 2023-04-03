@@ -8,13 +8,12 @@ Signal.trap('SIGINT') { throw :signal_interrupt }
 module RuMARS
   # The scheduler manages the task queues of the warriors.
   class Scheduler
-    attr_reader :cycles, :breakpoints
+    attr_reader :cycle_counter, :breakpoints
     attr_accessor :debug_level, :tracer, :logger
 
-    def initialize(memory_core, min_distance)
+    def initialize(memory_core, warriors)
       @memory_core = memory_core
-      @min_distance = min_distance
-      @warriors = []
+      @warriors = warriors
       @breakpoints = []
       @debug_level = 0
       @logger = $stdout
@@ -24,20 +23,6 @@ module RuMARS
 
     def log(text)
       @logger.puts text
-    end
-
-    def add_warrior(warrior)
-      raise ArgumentError, 'Warrior is already known' if @warriors.include?(warrior)
-
-      unless (base_address = find_base_address(warrior.size))
-        log('No more space in core memory to load another warrior')
-      end
-
-      @warriors << warrior
-      # Set the PID for the warrior
-      warrior.pid = @warriors.length
-
-      warrior.load_program(base_address, @memory_core)
     end
 
     def get_warrior_by_index(index)
@@ -135,6 +120,8 @@ module RuMARS
       pcs = []
 
       @warriors.each do |warrior|
+        next unless warrior.program
+
         # Get list of relative PCs from warriors and convert them into absolute PCs.
         pcs += warrior.task_queue.map { |pc| MemoryCore.fold(pc + warrior.base_address) }
       end
@@ -168,39 +155,6 @@ module RuMARS
       end
 
       alive
-    end
-
-    def find_base_address(size)
-      # The first warrior is always loaded to absolute address 0.
-      return 0 if @warriors.empty?
-
-      i = 0
-      loop do
-        address = rand(MemoryCore.size)
-
-        return address unless too_close_to_other_warriors?(address, address + size)
-
-        if (i += 1) > 1000
-          return nil
-        end
-      end
-    end
-
-    def too_close_to_other_warriors?(start_address, end_address)
-      # All warriors must fit into the core without wrapping around.
-      return true if end_address >= MemoryCore.size
-
-      @warriors.each do |warrior|
-        warrior_zone_start = warrior.base_address - @min_distance
-        warrior_zone_end = warrior.base_address + warrior.size + @min_distance
-
-        if (start_address >= warrior_zone_start && start_address <= warrior_zone_end) ||
-           (end_address >= warrior_zone_start && end_address <= warrior_zone_end)
-          return true
-        end
-      end
-
-      false
     end
   end
 end
