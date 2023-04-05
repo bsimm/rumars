@@ -35,6 +35,8 @@ module RuMARS
       end
 
       @name = @program.name unless @program.name.empty?
+
+      true
     end
 
     def parse_file(file_name, settings, logger)

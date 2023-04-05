@@ -28,9 +28,15 @@ module RuMARS
         address = MemoryCore.fold(@show_address + i)
         breakpoint = breakpoints.include?(address) ? '*' : ' '
         pc = program_counters.include?(address) ? '>' : ' '
-        puts " #{aformat(address)}#{breakpoint}#{pc} " \
-             "#{format('%-16s', current_warrior&.resolve_address(address) || '')} " \
-             "#{@mars.memory_core.instruction(address)}"
+        instruction = @mars.memory_core.peek(address)
+        line = "#{instruction.pid}:#{aformat(address)}#{breakpoint}#{pc} " \
+               "#{format('%-16s', current_warrior&.resolve_address(address) || '')} " \
+               "#{instruction}"
+        if program_counters.first == address
+          puts "\e[7m#{line}\e[0m"
+        else
+          puts line
+        end
       end
 
       super
@@ -38,6 +44,14 @@ module RuMARS
 
     def getch(char)
       case char
+      when 'Home'
+        # The Home key moves the window content to show the current PC
+        current_warrior = @mars.current_warrior
+        program_counters = @mars.scheduler.program_counters(current_warrior)
+        @show_address = program_counters.first || 0
+      when 'End'
+        # The end key moves the window content to show 0 at the center
+        @show_address = 0 - (@height / 2)
       when 'ArrowUp'
         change_show_address(-1)
       when 'ArrowDown'

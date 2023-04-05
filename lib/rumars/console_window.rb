@@ -20,10 +20,6 @@ module RuMARS
       prompt
     end
 
-    def resize(col, row, width, height)
-      super
-    end
-
     def getch(char)
       terminate = false
 
@@ -38,10 +34,14 @@ module RuMARS
           @command = @command[0..-2]
           @virt_term.backspace
         end
-      when 'F2'
-        toggle_breakpoint
-      when 'F7'
+      when 'F4'
+        @mars.toggle_coredump
+      when 'F5'
+        reload
+      when 'F6'
         restart
+      when 'F7'
+        toggle_breakpoint
       when 'F8'
         step
       when 'F9'
@@ -51,7 +51,7 @@ module RuMARS
           @command += char
           print char
         # else
-        #  print "[#{char.gsub(/\e/, '\e')}]"
+        #   print "[#{char.gsub(/\e/, '\e')}]"
         end
       end
 
@@ -138,6 +138,9 @@ module RuMARS
     end
 
     def run(args)
+      puts 'Type CTRL-C to interrupt the running warrior(s)'
+      @textwm.update_windows
+
       @mars.core_window.show_address = nil
       @mars.scheduler.run(args.first&.to_i || -1)
     end
@@ -161,6 +164,9 @@ module RuMARS
     def restart
       @mars.restart
       @mars.reload_warriors_into_core
+    end
+
+    def reload
     end
 
     def resolve_label(label_or_address)

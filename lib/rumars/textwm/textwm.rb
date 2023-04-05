@@ -37,14 +37,17 @@ module TextWM
 
     def register_window(window)
       @windows << window
-      activate_window(window)
+      focus_window(window)
     end
 
     def register_decoration(decoration)
       @decorations << decoration
     end
 
-    def activate_window(window)
+    # The the specified window to be the the one that the user interacts with.
+    # Other windows my continue to update their content, but the user can't
+    # directly interact with them.
+    def focus_window(window)
       raise 'Unknown window' unless @windows.include?(window)
 
       @windows.each do |w|
@@ -54,8 +57,8 @@ module TextWM
     end
 
     def update_windows
-      @windows.each { |window| window.update }
-      @decorations.each { |decoration| decoration.update }
+      @windows.each(&:update)
+      @decorations.each(&:update)
 
       @active_window.show_cursor
     end
@@ -70,12 +73,10 @@ module TextWM
         end
 
         case c
-        when 'F5'
-          activate_window(@windows[(@windows.size + @windows.index(@active_window) - 1) % @windows.size])
-        when 'F6'
-          activate_window(@windows[(@windows.index(@active_window) + 1) % @windows.size])
-        when 'q'
-          break
+        when 'F2'
+          focus_window(prev_window)
+        when 'F3'
+          focus_window(next_window)
         when nil
           resize
         else
@@ -85,6 +86,28 @@ module TextWM
 
       @terminal.clear
       @terminal.reset
+    end
+
+    def next_window
+      i = 1
+      loop do
+        window = @windows[(@windows.index(@active_window) + i) % @windows.size]
+        # Only return visible windows.
+        return window if window.visible?
+
+        i += 1
+      end
+    end
+
+    def prev_window
+      i = 1
+      loop do
+        window = @windows[(@windows.size + @windows.index(@active_window) - i) % @windows.size]
+        # Only return visible windows.
+        return window if window.visible?
+
+        i += 1
+      end
     end
   end
 end

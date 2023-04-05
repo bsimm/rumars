@@ -4,6 +4,8 @@ module TextWM
   class Splits
     DIRECTIONS = %i[vertical horizontal]
 
+    attr_reader :ratios
+
     def initialize(direction, *ratios)
       raise "Unknown direction #{direction}" unless DIRECTIONS.include?(direction)
 
@@ -35,6 +37,10 @@ module TextWM
           row += size
         end
       end
+    end
+
+    def visible?(index)
+      (window = @splits_or_windows[index]).is_a?(Window) && window.visible?
     end
 
     private

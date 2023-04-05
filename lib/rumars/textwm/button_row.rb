@@ -2,8 +2,8 @@
 
 module TextWM
   class ButtonRow
-    BUTTONS = [%w[F1 Help], %w[F2 Brkpt], %w[F4 PrevWin], %w[F5 NextWin], %w[F6 Reload],
-               %w[F7 Restart], %w[F8 Step], %w[F9 Run]].freeze
+    BUTTONS = [%w[F1 Help], %w[F2 PrevWin], %w[F3 NextWin], %w[F4 CoreView], %w[F5 Reload], %w[F6 Restart],
+               %w[F7 Brkpt], %w[F8 Step], %w[F9 Run]].freeze
 
     def initialize(textwm)
       @textwm = textwm

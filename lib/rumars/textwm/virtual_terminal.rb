@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
+require_relative 'string'
+
 module TextWM
   class VirtualTerminal
-    attr_reader :cursor_column, :cursor_row
     attr_accessor :right_clip, :bottom_clip
 
     def initialize(columns, rows)
@@ -88,14 +89,27 @@ module TextWM
       end
     end
 
+    # Return the row of the cursor in window coordinates
+    def cursor_row
+      @cursor_row - @view_top_line
+    end
+
+    # @return the column of the cursor in window coordinates
+    def cursor_column
+      @buffer_lines[@cursor_row[0..@cursor_column]].visible_length
+    end
+
     def line(index)
       if (line = @buffer_lines[@view_top_line + index])
-        if line.length < @view_columns
-          line + (' ' * (@view_columns - line.length))
+        length = line.visible_length
+
+        if length < @view_columns
+          line + (' ' * (@view_columns - length))
         else
-          line[0..@view_columns - 1]
+          line.first_visible_characters(@view_columns)
         end
       else
+        # The line is empty. Blank out the screen line.
         ' ' * @view_columns
       end
     end

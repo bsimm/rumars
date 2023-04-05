@@ -11,6 +11,7 @@ require_relative 'tracer'
 require_relative 'textwm/textwm'
 require_relative 'textwm/button_row'
 require_relative 'core_window'
+require_relative 'core_view_window'
 require_relative 'log_window'
 require_relative 'console_window'
 require_relative 'register_window'
@@ -21,7 +22,7 @@ module RuMARS
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
-    attr_reader :debug_level, :settings, :memory_core, :scheduler, :core_window, :console_window, :register_window
+    attr_reader :debug_level, :settings, :memory_core, :scheduler, :tracer, :core_window, :console_window, :register_window
 
     include Format
 
@@ -75,7 +76,7 @@ module RuMARS
     end
 
     def load_warrior(file_name)
-      warrior = Warrior.new("Player #{@scheduler.warrior_count}")
+      warrior = Warrior.new("Player #{@scheduler.warrior_count + 1}")
       register_warrior(warrior)
 
       return nil unless warrior.parse_file(file_name, @settings, @log_window)
@@ -98,32 +99,8 @@ module RuMARS
       load_warrior_into_core(warrior)
     end
 
-    def load_warrior_into_core(warrior)
-      unless (base_address = @memory_core.load_warrior(warrior))
-        @log_window.puts "Warrior '#{warrior.name}' could not be loaded into the core"
-        return false
-      end
-
-      @log_window.puts "Loaded '#{warrior.name}' into memory core at #{aformat(base_address)}"
-
-      # Tell the core window to show the code at the base address
-      @core_window.show_address = base_address
-
-      warrior
-    end
-
-    def register_warrior(warrior)
-      return if @warriors.include?(warrior)
-
-      @warriors << warrior
-    end
-
     def run(max_cycles = @settings.max_cycles)
       @scheduler.run(max_cycles)
-    end
-
-    def event_loop
-      @textwm.event_loop
     end
 
     def cycles
@@ -141,23 +118,50 @@ module RuMARS
       @console_window&.current_warrior
     end
 
+    def toggle_coredump
+      @vsplits.ratios[1] = @vsplits.ratios[1].zero? ? 10 : 0
+      @textwm.resize
+      @textwm.update_windows
+    end
+
     private
 
     def setup_windows
-      vsplits = @textwm.split(:vertical, nil, 10, 1)
-      hsplits = vsplits.assign(0, TextWM::Splits.new(:horizontal, 50, nil))
-      vsplits.assign(1, @console_window = ConsoleWindow.new(@textwm, self))
-      vsplits.assign(2, TextWM::ButtonRow.new(@textwm))
+      @vsplits = @textwm.split(:vertical, nil, 0, 10, 1)
+      hsplits = @vsplits.assign(0, TextWM::Splits.new(:horizontal, 50, nil))
+      @vsplits.assign(1, @coredump_window = CoreViewWindow.new(@textwm, self))
+      @vsplits.assign(2, @console_window = ConsoleWindow.new(@textwm, self))
+      @vsplits.assign(3, TextWM::ButtonRow.new(@textwm))
 
       hsplits.assign(0, @core_window = CoreWindow.new(@textwm, self))
       reg_log_splits = hsplits.assign(1, TextWM::Splits.new(:vertical, 12, nil))
-      reg_log_splits.assign(0, @register_window = RegisterWindow.new(@textwm, @tracer))
+      reg_log_splits.assign(0, @register_window = RegisterWindow.new(@textwm, self))
       reg_log_splits.assign(1, @log_window = LogWindow.new(@textwm))
 
       @textwm.resize
-      @textwm.activate_window(@console_window)
+      @textwm.focus_window(@console_window)
 
       @scheduler.logger = @log_window
+    end
+
+    def load_warrior_into_core(warrior)
+      unless (base_address = @memory_core.load_warrior(warrior))
+        @log_window.puts "Warrior '#{warrior.name}' could not be loaded into the core"
+        return false
+      end
+
+      @log_window.puts "Loaded '#{warrior.name}' into memory core at address #{aformat(base_address)}"
+
+      # Tell the core window to show the code at the base address
+      @core_window.show_address = base_address
+
+      warrior
+    end
+
+    def register_warrior(warrior)
+      return if @warriors.include?(warrior)
+
+      @warriors << warrior
     end
   end
 end

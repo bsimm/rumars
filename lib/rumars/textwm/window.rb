@@ -45,6 +45,10 @@ module TextWM
       print_frame_bottom
     end
 
+    def visible?
+      @width.positive? && @height.positive?
+    end
+
     def show_cursor
       unless @show_cursor
         @t.hide_cursor
@@ -100,6 +104,7 @@ module TextWM
       @t.set_cursor_position(@col, @row + i + 1)
       @t.print @active ? '║' : '│'
       @t.print @virt_term.line(i)
+      @t.attributes_off
       @t.print @active ? '║' : '│'
     end
 

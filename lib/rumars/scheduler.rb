@@ -2,14 +2,15 @@
 
 require_relative 'warrior'
 require_relative 'memory_core'
-
-Signal.trap('SIGINT') { throw :signal_interrupt }
+require_relative 'format'
 
 module RuMARS
   # The scheduler manages the task queues of the warriors.
   class Scheduler
     attr_reader :cycle_counter, :breakpoints
     attr_accessor :debug_level, :tracer, :logger
+
+    include Format
 
     def initialize(memory_core, warriors)
       @memory_core = memory_core
@@ -35,6 +36,7 @@ module RuMARS
 
     def run(max_cycles = -1)
       cycles = 0
+      Signal.trap('SIGINT') { throw :signal_interrupt }
       catch :signal_interrupt do
         loop do
           step
@@ -49,6 +51,7 @@ module RuMARS
             break
           end
         end
+        Signal.trap('SIGINT', 'DEFAULT')
       end
     end
 
@@ -83,7 +86,7 @@ module RuMARS
         address = warrior.next_task
         # Load instruction
         core_address = MemoryCore.fold(address + warrior.base_address)
-        instruction = @memory_core.load(core_address)
+        instruction = @memory_core.peek(core_address)
         @tracer&.next_instruction(core_address, instruction.to_s)
         @tracer&.cycle(@cycle_counter)
 
@@ -108,7 +111,7 @@ module RuMARS
 
         @tracer&.program_counters(warrior.task_queue)
         if (next_pc = warrior.task_queue.last) != MemoryCore.fold(address + 1)
-          log("Jumped to #{'%04d' % next_pc}: #{@memory_core.load(next_pc)}")
+          log("Jumped to #{aformat(next_pc)}: #{@memory_core.peek(next_pc)}")
         end
       end
     end

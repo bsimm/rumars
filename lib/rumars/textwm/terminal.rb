@@ -10,6 +10,7 @@ module TextWM
     KEYSTROKES = {
       "\177" => 'Backspace',
       "\e" => 'Escape',
+      "\e[2~" => 'Insert',
       "\e[3~" => 'Delete',
       "\e[5~" => 'PageUp',
       "\e[6~" => 'PageDown',
@@ -17,6 +18,8 @@ module TextWM
       "\e[B" => 'ArrowDown',
       "\e[C" => 'ArrowRight',
       "\e[D" => 'ArrowLeft',
+      "\e[F" => 'End',
+      "\e[H" => 'Home',
       "\eOP" => 'F1',
       "\eOQ" => 'F2',
       "\eOR" => 'F3',
@@ -148,7 +151,7 @@ module TextWM
 
       if str == "\e"
         begin
-          str << @inp.read_nonblock(4)
+          str << @inp.read_nonblock(5)
         rescue IO::EAGAINWaitReadable
         end
       end

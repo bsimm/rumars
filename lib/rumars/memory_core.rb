@@ -28,16 +28,12 @@ module RuMARS
       @warriors = []
       @tracer = nil
       MemoryCore.size.times do |address|
-        store(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
+        poke(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
       end
     end
 
     def self.fold(address)
       (MemoryCore.size + address) % MemoryCore.size
-    end
-
-    def instruction(address)
-      @instructions[address]
     end
 
     def load_warrior(warrior)
@@ -55,7 +51,7 @@ module RuMARS
         instruction_copy = instruction.deep_copy
         instruction_copy.address = address
         instruction_copy.pid = pid
-        store(address, instruction_copy)
+        poke(address, instruction_copy)
 
         address = MemoryCore.fold(address + 1)
       end
@@ -64,29 +60,22 @@ module RuMARS
       base_address
     end
 
-    def load(address)
+    def peek(address)
       raise ArgumentError, "address #{address} out of range" if address.negative? || address >= MemoryCore.size
 
       @instructions[address]
     end
 
-    def store(address, instruction)
+    def poke(address, instruction)
       raise ArgumentError, "address #{address} out of range" if address.negative? || address >= MemoryCore.size
 
       instruction.address = address
       @instructions[address] = instruction
     end
 
-    def list(program_counters, current_warrior, start_address = current_warrior.base_address, length = 10)
-      length.times do |i|
-        address = start_address + i
-        puts" #{'%04d' % address} #{program_counters.include?(address) ? '>' : ' '} #{'%-8s' % (current_warrior&.resolve_address(address) || '')} #{@instructions[address]}"
-      end
-    end
-
     def load_relative(base_address, program_counter, address)
       core_address = MemoryCore.fold(base_address + program_counter + address)
-      instruction = load(core_address)
+      instruction = peek(core_address)
       @tracer&.log_load(core_address, instruction.to_s)
       instruction
     end
@@ -94,48 +83,7 @@ module RuMARS
     def store_relative(base_address, program_counter, address, instruction)
       core_address = MemoryCore.fold(base_address + program_counter + address)
       @tracer&.log_store(core_address, instruction.to_s)
-      store(core_address, instruction)
-    end
-
-    def dump(program_counters)
-      term = Rainbow.new
-
-      (MemoryCore.size / 80).times do |line|
-        80.times do |column|
-          address = (80 * line) + column
-          instruction = @instructions[address]
-          print term.wrap(instruction_character(instruction)).color(COLORS[instruction.pid])
-                    .background(program_counters.include?(address) ? :white : :black)
-        end
-        puts
-      end
-    end
-
-    def instruction_character(instruction)
-      case instruction.opcode
-      when 'DAT'
-        'X'
-      when 'ADD'
-        '+'
-      when 'SUB'
-        '-'
-      when 'MUL'
-        '*'
-      when 'DIV'
-        '/'
-      when 'MOD'
-        '%'
-      when 'MOV'
-        'M'
-      when 'NOP'
-        '.'
-      when 'JMP', 'JMZ', 'JMN', 'DJN', 'CMP', 'SLT', 'SEC', 'SNE'
-        'J'
-      when 'SPL'
-        '<'
-      else
-        '?'
-      end
+      poke(core_address, instruction)
     end
 
     def find_base_address(size)
