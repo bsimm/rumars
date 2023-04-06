@@ -18,7 +18,10 @@ module TextWM
       @splits = nil
       @windows = []
       @active_window = nil
-      @decorations = []
+      @panels = []
+
+      # Set to true to exit the event loop
+      @exit_application = false
     end
 
     def resize
@@ -40,8 +43,8 @@ module TextWM
       focus_window(window)
     end
 
-    def register_decoration(decoration)
-      @decorations << decoration
+    def register_panel(panel)
+      @panels << panel
     end
 
     # The the specified window to be the the one that the user interacts with.
@@ -58,9 +61,13 @@ module TextWM
 
     def update_windows
       @windows.each(&:update)
-      @decorations.each(&:update)
+      @panels.each(&:update)
 
       @active_window.show_cursor
+    end
+
+    def exit_application
+      @exit_application = true
     end
 
     def event_loop
@@ -72,20 +79,26 @@ module TextWM
           c = @terminal.getch
         end
 
-        case c
-        when 'F2'
-          focus_window(prev_window)
-        when 'F3'
-          focus_window(next_window)
-        when nil
-          resize
-        else
-          break unless @active_window.getch(c)
-        end
+        process_keystroke(c)
+
+        break if @exit_application
       end
 
       @terminal.clear
       @terminal.reset
+    end
+
+    def process_keystroke(char)
+      if char.nil?
+        resize
+        return
+      end
+
+      @panels.each do |panel|
+        return if panel.getch(char)
+      end
+
+      @active_window.getch(char)
     end
 
     def next_window

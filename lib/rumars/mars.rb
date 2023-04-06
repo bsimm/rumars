@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'readline'
-
 require_relative 'settings'
 require_relative 'commandline_arguments_parser'
 require_relative 'memory_core'
@@ -9,7 +7,7 @@ require_relative 'scheduler'
 require_relative 'warrior'
 require_relative 'tracer'
 require_relative 'textwm/textwm'
-require_relative 'textwm/button_row'
+require_relative 'textwm/panel'
 require_relative 'core_window'
 require_relative 'core_view_window'
 require_relative 'log_window'
@@ -118,8 +116,22 @@ module RuMARS
       @console_window&.current_warrior
     end
 
-    def toggle_coredump
-      @vsplits.ratios[1] = @vsplits.ratios[1].zero? ? 10 : 0
+    def toggle_core_view
+      # The core view can be invisble, small and big. The other panes will be
+      # adjusted accordingly.
+      current_size = @vsplits.ratios[1]
+      if current_size == 0
+        # The core view is currently invisible. Make it small.
+        @vsplits.ratios = [nil, 10, 10, 1]
+      elsif current_size == 10
+        # The core view is currently small. Make it big.
+        @vsplits.ratios = [3, nil, 4, 1]
+        @reg_log_splits.ratios = [0, 3]
+      else
+        # The core view is currently big. Hide it.
+        @vsplits.ratios = [nil, 0, 10, 1]
+        @reg_log_splits.ratios = [12, nil]
+      end
       @textwm.resize
       @textwm.update_windows
     end
@@ -131,17 +143,32 @@ module RuMARS
       hsplits = @vsplits.assign(0, TextWM::Splits.new(:horizontal, 50, nil))
       @vsplits.assign(1, @coredump_window = CoreViewWindow.new(@textwm, self))
       @vsplits.assign(2, @console_window = ConsoleWindow.new(@textwm, self))
-      @vsplits.assign(3, TextWM::ButtonRow.new(@textwm))
+      @vsplits.assign(3, setup_panel)
 
       hsplits.assign(0, @core_window = CoreWindow.new(@textwm, self))
-      reg_log_splits = hsplits.assign(1, TextWM::Splits.new(:vertical, 12, nil))
-      reg_log_splits.assign(0, @register_window = RegisterWindow.new(@textwm, self))
-      reg_log_splits.assign(1, @log_window = LogWindow.new(@textwm))
+      @reg_log_splits = hsplits.assign(1, TextWM::Splits.new(:vertical, 12, nil))
+      @reg_log_splits.assign(0, @register_window = RegisterWindow.new(@textwm, self))
+      @reg_log_splits.assign(1, @log_window = LogWindow.new(@textwm))
 
       @textwm.resize
       @textwm.focus_window(@console_window)
 
       @scheduler.logger = @log_window
+    end
+
+    def setup_panel
+      panel = TextWM::Panel.new(@textwm)
+      panel.add_button('F1', 'Help') {}
+      panel.add_button('F2', 'PrevWin') { @textwm.focus_window(@textwm.prev_window) }
+      panel.add_button('F3', 'NextWin') { @textwm.focus_window(@textwm.next_window) }
+      panel.add_button('F4', 'CoreView') { toggle_core_view }
+      panel.add_button('F5', 'Reload') {}
+      panel.add_button('F6', 'Restart') { @console_window.restart }
+      panel.add_button('F7', 'Brkpt') { @console_window.toggle_breakpoint }
+      panel.add_button('F8', 'Step') { @console_window.step }
+      panel.add_button('F9', 'Run') { @console_window.run }
+
+      panel
     end
 
     def load_warrior_into_core(warrior)

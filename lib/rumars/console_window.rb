@@ -21,12 +21,10 @@ module RuMARS
     end
 
     def getch(char)
-      terminate = false
-
       case char
       when 'Return'
         puts
-        terminate = true unless execute(@command)
+        execute(@command)
         @command = ''
         prompt
       when 'Backspace'
@@ -34,18 +32,6 @@ module RuMARS
           @command = @command[0..-2]
           @virt_term.backspace
         end
-      when 'F4'
-        @mars.toggle_coredump
-      when 'F5'
-        reload
-      when 'F6'
-        restart
-      when 'F7'
-        toggle_breakpoint
-      when 'F8'
-        step
-      when 'F9'
-        run([])
       else
         if char.length == 1 && char.ord >= 32
           @command += char
@@ -54,76 +40,6 @@ module RuMARS
         #   print "[#{char.gsub(/\e/, '\e')}]"
         end
       end
-
-      !terminate
-    end
-
-    private
-
-    def prompt
-      print("MARS>> #{@command}")
-    end
-
-    def execute(command)
-      args = command.split(/\s+/)
-
-      case args.shift
-      when 'battle', 'ba'
-        @mars.scheduler.battle
-      when 'break', 'br'
-        toggle_breakpoint(args)
-      when 'debug'
-        @mars.debug_level = args.first&.to_i || 0
-      when 'dump', 'du'
-        @mars.memory_core.dump(@scheduler.program_counters)
-      when 'exit', 'ex'
-        return false
-      when 'focus', 'fo'
-        change_current_warrior(args.first&.to_i)
-      when 'list', 'li'
-        if (address = resolve_label(args.first))
-          @mars.core_window.show_address = address
-        end
-      when 'load', 'lo'
-        load_warriors(args)
-      when 'pcs'
-        list_program_counters
-      when 'restart', 're'
-        restart
-      when 'run', 'ru'
-        run(args)
-      when 'step', 'st'
-        step
-      else
-        puts "Unknown command: #{command}"
-      end
-
-      true
-    end
-
-    def load_warriors(files)
-      if files.empty?
-        puts 'You must specify at least one Redcode file'
-        return
-      end
-
-      files.each do |file|
-        @current_warrior = @mars.load_warrior(file)
-      end
-    end
-
-    def change_current_warrior(index)
-      unless (warrior = @scheduler.get_warrior_by_index(index - 1))
-        puts "Unknown warrior #{index}"
-      end
-
-      @current_warrior = warrior
-    end
-
-    def list_program_counters
-      return unless @current_warrior
-
-      puts @mars.scheduler.program_counters(@current_warrior).join(' ')
     end
 
     def step
@@ -137,7 +53,7 @@ module RuMARS
       @mars.debug_level = prev_debug_level
     end
 
-    def run(args)
+    def run(args = [])
       puts 'Type CTRL-C to interrupt the running warrior(s)'
       @textwm.update_windows
 
@@ -167,6 +83,72 @@ module RuMARS
     end
 
     def reload
+    end
+
+    private
+
+    def prompt
+      print("MARS>> #{@command}")
+    end
+
+    def execute(command)
+      args = command.split(/\s+/)
+
+      case args.shift
+      when 'battle', 'ba'
+        @mars.scheduler.battle
+      when 'break', 'br'
+        toggle_breakpoint(args)
+      when 'debug'
+        @mars.debug_level = args.first&.to_i || 0
+      when 'dump', 'du'
+        @mars.memory_core.dump(@scheduler.program_counters)
+      when 'exit', 'ex'
+        @textwm.exit_application
+      when 'focus', 'fo'
+        change_current_warrior(args.first&.to_i)
+      when 'list', 'li'
+        if (address = resolve_label(args.first))
+          @mars.core_window.show_address = address
+        end
+      when 'load', 'lo'
+        load_warriors(args)
+      when 'pcs'
+        list_program_counters
+      when 'restart', 're'
+        restart
+      when 'run', 'ru'
+        run(args)
+      when 'step', 'st'
+        step
+      else
+        puts "Unknown command: #{command}"
+      end
+    end
+
+    def load_warriors(files)
+      if files.empty?
+        puts 'You must specify at least one Redcode file'
+        return
+      end
+
+      files.each do |file|
+        @current_warrior = @mars.load_warrior(file)
+      end
+    end
+
+    def change_current_warrior(index)
+      unless (warrior = @scheduler.get_warrior_by_index(index - 1))
+        puts "Unknown warrior #{index}"
+      end
+
+      @current_warrior = warrior
+    end
+
+    def list_program_counters
+      return unless @current_warrior
+
+      puts @mars.scheduler.program_counters(@current_warrior).join(' ')
     end
 
     def resolve_label(label_or_address)

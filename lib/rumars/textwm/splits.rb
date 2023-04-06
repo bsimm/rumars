@@ -4,7 +4,7 @@ module TextWM
   class Splits
     DIRECTIONS = %i[vertical horizontal]
 
-    attr_reader :ratios
+    attr_accessor :ratios
 
     def initialize(direction, *ratios)
       raise "Unknown direction #{direction}" unless DIRECTIONS.include?(direction)
@@ -26,6 +26,7 @@ module TextWM
       @col = col
       @row = row
 
+      # Sizes of Splits are calculated from outer to inner splits.
       if @direction == :horizontal
         calc_sizes(width, @ratios).each_with_index do |size, index|
           @splits_or_windows[index].resize(col, row, size, height)
@@ -63,7 +64,9 @@ module TextWM
         sum += sizes[index] if sizes[index]
       end
 
-      raise ArgumentError, "Ratios don't add up" if sum > total
+      raise ArgumentError, "Can't fit #{sum} into #{total}" if sum > total
+
+      return sizes if flex_count.zero?
 
       flex_size = (total - sum) / flex_count
       remainder = flex_size % flex_count
