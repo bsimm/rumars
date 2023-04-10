@@ -167,20 +167,21 @@ module RuMARS
       panel.add_button('F7', 'Brkpt') { @console_window.toggle_breakpoint }
       panel.add_button('F8', 'Step') { @console_window.step }
       panel.add_button('F9', 'Run') { @console_window.run }
+      panel.add_button('Escape', nil) { @textwm.focus_window(@console_window) }
 
       panel
     end
 
     def load_warrior_into_core(warrior)
       unless (base_address = @memory_core.load_warrior(warrior))
-        @log_window.puts "Warrior '#{warrior.name}' could not be loaded into the core"
+        puts "Warrior '#{warrior.name}' could not be loaded into the core"
         return false
       end
 
-      @log_window.puts "Loaded '#{warrior.name}' into memory core at address #{aformat(base_address)}"
+      puts "Loaded '#{warrior.name}' into memory core at address #{aformat(base_address)}"
 
       # Tell the core window to show the code at the base address
-      @core_window.show_address = base_address
+      @core_window.show_address = base_address if @core_window
 
       warrior
     end

@@ -53,10 +53,9 @@ module TextWM
     def focus_window(window)
       raise 'Unknown window' unless @windows.include?(window)
 
-      @windows.each do |w|
-        w.active = (w == window)
-      end
+      @active_window.active = false if @active_window
       @active_window = window
+      window.active = true
     end
 
     def update_windows

@@ -36,11 +36,13 @@ module TextWM
     def update
       t = @textwm.terminal
       col = Rainbow.new
+      # Ignore buttons that have no label.
+      buttons = @buttons.clone.delete_if { |b| b.label.nil? }
 
       t.set_cursor_position(@col, @row)
-      button_length = @buttons.map { |b| "#{b.key}-#{b.label}" }.join.length
+      button_length = buttons.map { |b| "#{b.key}-#{b.label}" }.join.length
       spacer = ' ' * ((@width - button_length) / (@buttons.length - 1))
-      t.print @buttons.map { |b| "#{col.wrap(b.key).color(:red)}-#{b.label}" }.join(spacer)
+      t.print buttons.map { |b| "#{col.wrap(b.key).color(:red)}-#{b.label}" }.join(spacer)
     end
   end
 end
