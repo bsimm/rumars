@@ -9,10 +9,6 @@ module TextWM
 
     # @param textwm [TextWM]
     # @param name [String]
-    # @param col [Integer]
-    # @param row [Integer]
-    # @param width [Integer]
-    # @param height [Integer]
     def initialize(textwm, name)
       @textwm = textwm
       @textwm.register_window(self)
@@ -25,6 +21,10 @@ module TextWM
       @show_cursor = false
     end
 
+    # @param col [Integer]
+    # @param row [Integer]
+    # @param width [Integer]
+    # @param height [Integer]
     def resize(col, row, width, height)
       @col = col
       @row = row
