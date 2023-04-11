@@ -36,6 +36,10 @@ module RuMARS
       (MemoryCore.size + address) % MemoryCore.size
     end
 
+    def pid(warrior)
+      (pid = @warriors.index(warrior)) ? pid + 1 : nil
+    end
+
     def load_warrior(warrior)
       # Make sure the warrior has a valid program
       return nil unless warrior.program

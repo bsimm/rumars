@@ -362,11 +362,12 @@ module RuMARS
       @ignore_lines = true
     end
 
-    def instruction(label)
+    def opcode_and_operands
       (opc = opcode) && (mod = optional_modifier[1..]) &&
         space && (e1 = expression) && space && (e2 = optional_expression) && space && optional_comment
 
       return nil unless opc
+
       # Redcode instructions are case-insensitive. We use upper case internally,
       # but allow for lower-case notation in source files.
       opc.upcase!
@@ -374,13 +375,17 @@ module RuMARS
 
       raise ParseError.new(self, "Instruction #{opc} must have an A-operand") unless e1
 
-      @program.add_label(label) unless label.empty?
-
       # The default B-operand is an immediate value of 0
       e2 ||= Operand.new('#', Expression.new(0, nil, nil))
       mod = default_modifier(opc, e1, e2) if mod == ''
 
-      instruction = Instruction.new(0, opc, mod, e1, e2)
+      Instruction.new(0, opc, mod, e1, e2)
+    end
+
+    def instruction(label)
+      return nil unless (instruction = opcode_and_operands)
+
+      @program.add_label(label) unless label.empty?
       @program.append_instruction(instruction)
     end
 

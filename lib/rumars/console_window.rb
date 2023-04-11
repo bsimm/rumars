@@ -101,8 +101,6 @@ module RuMARS
         toggle_breakpoint(args)
       when 'debug'
         @mars.debug_level = args.first&.to_i || 0
-      when 'dump', 'du'
-        @mars.memory_core.dump(@scheduler.program_counters)
       when 'exit', 'ex'
         @textwm.exit_application
       when 'focus', 'fo'
@@ -115,6 +113,10 @@ module RuMARS
         load_warriors(args)
       when 'pcs'
         list_program_counters
+      when 'peek', 'pe'
+        peek(args)
+      when 'poke', 'po'
+        poke(args)
       when 'restart', 're'
         restart
       when 'run', 'ru'
@@ -151,13 +153,42 @@ module RuMARS
       puts @mars.scheduler.program_counters(@current_warrior).join(' ')
     end
 
+    def peek(args)
+      return unless (address = resolve_label(args.first))
+
+      begin
+        puts @mars.memory_core.peek(address)
+      rescue ArgumentError => e
+        puts e.message
+      end
+    end
+
+    def poke(args)
+      return unless (address = resolve_label(args.first))
+
+      instruction_text = args[1..].join(' ')
+
+      parser = Parser.new({}, $stdout)
+      instruction = parser.parse(instruction_text, :opcode_and_operands)
+
+      begin
+        instruction.evaluate_expressions(@mars.current_warrior&.program&.labels || [], address)
+      rescue Expression::ExpressionError
+        raise Expression::ExpressionError, instruction.to_s
+      end
+      # Set the ownership of the new instruction to the current warrior
+      instruction.pid = @mars.memory_core.pid(@mars.current_warrior) || 0
+
+      @mars.memory_core.poke(address, instruction)
+    end
+
     def resolve_label(label_or_address)
       case label_or_address
       when Integer
         return label_or_address
       when /\A\d+\z/
         if (address = label_or_address.to_i) >= MemoryCore.size
-          puts "Breakpoint address #{address} must be between 0 and #{MemoryCore.size - 1}"
+          puts "Address #{address} must be between 0 and #{MemoryCore.size - 1}"
           return nil
         end
 
