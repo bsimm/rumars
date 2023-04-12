@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 require_relative 'textwm/window'
+require_relative 'format'
 
 module RuMARS
   class ConsoleWindow < TextWM::Window
     attr_accessor :current_warrior
+
+    include Format
 
     def initialize(textwm, mars)
       super(textwm, 'Console Window')
@@ -61,20 +64,17 @@ module RuMARS
       @mars.scheduler.run(args.first&.to_i || -1)
     end
 
-    def toggle_breakpoint(breakpoints = [])
-      if breakpoints.empty?
-        unless (pc = @mars.scheduler.program_counters(@current_warrior).first)
+    def toggle_breakpoint(args = [])
+      if args.empty?
+        unless (address = @mars.scheduler.program_counters(@current_warrior).first)
           puts 'You must specify a memory core address or a label name to set a breakpoint'
           return
         end
-        breakpoints = [pc]
+      else
+        return unless (address = parse_address_expression(args.join(' ')))
       end
 
-      breakpoints.each do |breakpoint|
-        if (address = resolve_label(breakpoint))
-          @mars.scheduler.toggle_breakpoint(address)
-        end
-      end
+      @mars.scheduler.toggle_breakpoint(address)
     end
 
     def restart
@@ -106,9 +106,7 @@ module RuMARS
       when 'focus', 'fo'
         change_current_warrior(args.first&.to_i)
       when 'list', 'li'
-        if (address = resolve_label(args.first))
-          @mars.core_window.show_address = address
-        end
+        list(args)
       when 'load', 'lo'
         load_warriors(args)
       when 'pcs'
@@ -147,6 +145,12 @@ module RuMARS
       @current_warrior = warrior
     end
 
+    def list(args)
+      return unless (address = parse_address_expression(args.join(' ')))
+
+      @mars.core_window.show_address = address
+    end
+
     def list_program_counters
       return unless @current_warrior
 
@@ -154,10 +158,10 @@ module RuMARS
     end
 
     def peek(args)
-      return unless (address = resolve_label(args.first))
+      return unless (address = parse_address_expression(args.join(' ')))
 
       begin
-        puts @mars.memory_core.peek(address)
+        puts "#{aformat(address)}: #{@mars.memory_core.peek(address)}"
       rescue ArgumentError => e
         puts e.message
       end
@@ -169,17 +173,51 @@ module RuMARS
       instruction_text = args[1..].join(' ')
 
       parser = Parser.new({}, $stdout)
-      instruction = parser.parse(instruction_text, :opcode_and_operands)
+
+      begin
+        unless (instruction = parser.parse(instruction_text, :opcode_and_operands))
+          puts 'You must specify a valid instruction'
+          return
+        end
+      rescue Parser::ParseError => e
+        puts e.message
+        return
+      end
 
       begin
         instruction.evaluate_expressions(@mars.current_warrior&.program&.labels || [], address)
-      rescue Expression::ExpressionError
-        raise Expression::ExpressionError, instruction.to_s
+      rescue Expression::ExpressionError => e
+        puts e.message
+        return
       end
+
       # Set the ownership of the new instruction to the current warrior
       instruction.pid = @mars.memory_core.pid(@mars.current_warrior) || 0
 
       @mars.memory_core.poke(address, instruction)
+      @mars.core_window.show_address = address
+    end
+
+    def parse_address_expression(term)
+      parser = Parser.new({}, $stdout)
+      begin
+        unless (address_expression = parser.parse(term, :expr))
+          puts 'You must specify an epression that resolves to an address'
+          return nil
+        end
+      rescue Parser::ParseError => e
+        puts e.message
+        return nil
+      end
+
+      begin
+        address = address_expression.eval(@mars.current_warrior&.program&.labels || [])
+      rescue Expression::ExpressionError => e
+        puts "Error in address expression: #{e.message}"
+        return nil
+      end
+
+      MemoryCore.fold(address)
     end
 
     def resolve_label(label_or_address)
