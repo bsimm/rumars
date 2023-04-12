@@ -110,11 +110,13 @@ module RuMARS
       self.class.tracer&.processing_a_operand
       bus.a_operand = @a_operand.evaluate(bus)
       bus.a_operand.instruction = bus.a_operand.instruction.deep_copy
+      @a_operand.post_increment(bus, bus.a_operand)
       self.class.tracer&.log_operand(bus.a_operand)
 
       # Prepare the B-Operand
       self.class.tracer&.processing_b_operand
       bus.b_operand = @b_operand.evaluate(bus)
+      @b_operand.post_increment(bus, bus.b_operand)
       self.class.tracer&.log_operand(bus.b_operand)
 
       self.class.tracer&.processing_instruction
@@ -166,11 +168,6 @@ module RuMARS
         raise "Unknown opcode #{@opcode} at address #{program_counter}"
       end
 
-      self.class.tracer&.processing_a_operand
-      @a_operand.post_increment(bus, bus.a_operand)
-      self.class.tracer&.processing_b_operand
-      @b_operand.post_increment(bus, bus.b_operand)
-
       next_pc
     end
 
@@ -204,11 +201,21 @@ module RuMARS
       when 'BA'
         irb.a_number = arith_op(irb.a_number, op, ira.b_number)
       when 'F', 'I'
-        irb.a_number = arith_op(irb.a_number, op, ira.a_number)
+        begin
+          irb.a_number = arith_op(irb.a_number, op, ira.a_number)
+        rescue DivBy0Error => e
+        end
+        # The b operation must be computed even if the a operation had a division by 0
         irb.b_number = arith_op(irb.b_number, op, ira.b_number)
+        raise e if e
       when 'X'
-        irb.b_number = arith_op(irb.a_number, op, ira.b_number)
+        begin
+          irb.b_number = arith_op(irb.a_number, op, ira.b_number)
+        rescue DivBy0Error => e
+        end
+        # The b operation must be computed even if the a operation had a division by 0
         irb.a_number = arith_op(irb.b_number, op, ira.a_number)
+        raise e if e
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
       end

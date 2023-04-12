@@ -213,6 +213,10 @@ module RuMARS
       scan(/,/)
     end
 
+    def colon
+      scan(/:/)
+    end
+
     def operator
       scan(%r{(-|\+|\*|/|%|==|!=|<=|>=|<|>|&&|\|\|)})
     end
@@ -390,7 +394,9 @@ module RuMARS
     end
 
     def optional_label
-      label || ''
+      (l = label) && colon
+
+      l || ''
     end
 
     def optional_modifier
