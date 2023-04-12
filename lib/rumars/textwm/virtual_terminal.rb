@@ -38,9 +38,20 @@ module TextWM
       @buffer_lines[@cursor_row] = line[0..@cursor_column - 1] + line[@cursor_column + 1..]
     end
 
+    def clear_row
+      @buffer_lines[@cursor_row] = +''
+      @cursor_column = 0
+    end
+
     def resize(columns, rows)
       @view_columns = columns
       @view_rows = rows
+
+      if @cursor_row - @view_top_line > @view_rows
+        # The cursor is no longer inside the visible area. Update the @view_top_line
+        # to ensure that the cursor is at least on the last visible line.
+        @view_top_line = @cursor_row - @view_rows + 1
+      end
     end
 
     def scroll(lines)

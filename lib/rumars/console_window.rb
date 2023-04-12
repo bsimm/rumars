@@ -9,6 +9,8 @@ module RuMARS
 
     include Format
 
+    HISTORY_SIZE = 100
+
     def initialize(textwm, mars)
       super(textwm, 'Console Window')
       @mars = mars
@@ -20,13 +22,46 @@ module RuMARS
       @current_warrior = nil
 
       @command = ''
+      @saved_command = nil
+      @command_history = []
+      @history_index = -1
       prompt
     end
 
     def getch(char)
       case char
+      when 'ArrowUp'
+        return if @history_index >= @command_history.length - 1
+
+        # If we show the most recent history command, we store the currently typed
+        # command in the saved command buffer.
+        @saved_command = @command if @history_index == -1
+
+        @command = @command_history[@history_index += 1]
+
+        @virt_term.clear_row
+        prompt
+      when 'ArrowDown'
+        return if @history_index.negative? || (@history_index.zero? && @saved_command.nil?)
+
+        if @history_index.zero?
+          # We have listed the most recent command from the history buffer already.
+          # Now restore the command from the saved command buffer.
+          @command = @saved_command
+          @saved_command = nil
+          @history_index = -1
+        else
+          @command = @command_history[@history_index -= 1]
+        end
+
+        @virt_term.clear_row
+        prompt
       when 'Return'
         puts
+        @command_history.unshift(@command)
+        @command_history.delete_at(HISTORY_SIZE) if @command_history.length >= HISTORY_SIZE
+        @history_index = -1
+        @saved_command = nil
         execute(@command)
         @command = ''
         prompt
