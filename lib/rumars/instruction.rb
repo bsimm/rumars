@@ -126,7 +126,7 @@ module RuMARS
       when 'ADD'
         arith('+', bus)
       when 'DAT'
-        self.class.tracer&.operation("Terminating current thread")
+        self.class.tracer&.operation('Terminating current thread')
         next_pc = nil
       when 'DIV'
         begin
@@ -269,7 +269,8 @@ module RuMARS
       when 'F', 'X', 'I'
         irb.decrement_a_number
         irb.decrement_b_number
-        self.class.tracer&.operation("Jumping if not (irb A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0)")
+        self.class.tracer&.operation("Jumping if not (irb A-Number (#{irb.a_number}) == 0 && " \
+                                     "irb B-Number (#{irb.b_number}) == 0)")
         return next_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -327,7 +328,8 @@ module RuMARS
         return jump_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump if either of the fields are zero
-        self.class.tracer&.operation("Jumping unless ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
+        self.class.tracer&.operation("Jumping unless ira A-Number (#{irb.a_number}) == 0 && " \
+                                     "irb B-Number (#{irb.b_number}) == 0")
         return jump_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -395,11 +397,11 @@ module RuMARS
         return next2_pc if ira.b_number == irb.a_number
       when 'F'
         self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number}) &&" \
-            "ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
+                                     "ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number == irb.a_number && ira.b_number == irb.b_number
       when 'X'
         self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number}) &&" \
-            "ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
+                                     "ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number == irb.b_number && ira.b_number == irb.a_number
       when 'I'
         self.class.tracer&.operation("Jumping if ira (#{ira}) == irb (#{irb})")
@@ -432,11 +434,11 @@ module RuMARS
         return next2_pc if ira.b_number != irb.a_number
       when 'F'
         self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number}) &&" \
-            "ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
+                                     "ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
         return next2_pc if ira.a_number != irb.a_number && ira.b_number != irb.b_number
       when 'X'
         self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number}) &&" \
-            "ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
+                                     "ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
         return next2_pc if ira.a_number != irb.b_number && ira.b_number != irb.a_number
       when 'I'
         self.class.tracer&.operation("Jumping if ira (#{ira}) != irb (#{irb})")
