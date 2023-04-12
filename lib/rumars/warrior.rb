@@ -16,6 +16,7 @@ module RuMARS
       @name = name
       @file_name = nil
       @program = nil
+      @timestamp = nil
       @base_address = nil
       @pid = nil
     end
@@ -51,10 +52,26 @@ module RuMARS
 
       if parse(redcode, settings, logger)
         logger.puts "Redcode file #{file_name} loaded"
+        @timestamp = Time.now
         return true
       end
 
       false
+    end
+
+    def reload(settings, logger)
+      begin
+        modification_time = File.mtime(@file_name)
+      rescue Errno::ENOENT
+        logger.puts "File #{@file_name} has disappeared"
+        unload_program
+        @program = nil
+        return false
+      end
+
+      return true if @file_name.nil? || @timestamp.nil? || modification_time < @timestamp
+
+      parse_file(@file_name, settings, logger)
     end
 
     # Notify the warrior that it was reloaded into the core at a new address
@@ -107,7 +124,7 @@ module RuMARS
     end
 
     def resolve_address(address)
-      @program.resolve_address(address - @base_address) || ''
+      @program&.resolve_address(address - @base_address) || ''
     end
   end
 end

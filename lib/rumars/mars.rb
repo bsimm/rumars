@@ -66,6 +66,10 @@ module RuMARS
     end
 
     def reload_warriors_into_core
+      @warriors.each do |warrior|
+        warrior.reload(@settings, @log_window)
+      end
+
       @warriors.each(&:unload_program)
 
       @warriors.each do |warrior|
