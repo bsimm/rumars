@@ -64,9 +64,9 @@ module TextWM
         sum += sizes[index] if sizes[index]
       end
 
-      raise ArgumentError, "Can't fit #{sum} into #{total}" if sum > total
+      # raise ArgumentError, "Can't fit #{sum} into #{total}" if sum > total
 
-      return sizes if flex_count.zero?
+      return sizes if flex_count.zero? || sum > total
 
       flex_size = (total - sum) / flex_count
       remainder = flex_size % flex_count

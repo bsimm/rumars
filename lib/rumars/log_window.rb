@@ -6,6 +6,7 @@ module RuMARS
   class LogWindow < TextWM::Window
     def initialize(textwm)
       super(textwm, 'Log Window')
+      vertical_scrollbar.enable(true)
     end
 
     def update

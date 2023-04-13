@@ -11,7 +11,8 @@ module RuMARS
       super(textwm, 'Register Window')
 
       @mars = mars
-      @trace_index = -1
+      @trace_index = 0
+      vertical_scrollbar.enable(true)
     end
 
     def update
@@ -25,13 +26,30 @@ module RuMARS
       super
     end
 
+    def update_vertical_scrollbar
+      vertical_scrollbar.update(@height - 2, @mars.tracer.trace_count, 1, @trace_index)
+    end
+
     def getch(char)
+      last_index = @mars.tracer.trace_count - 1
+
       case char
       when 'ArrowUp'
-        @trace_index -= 1 if @trace_index >= -(@mars.tracer.trace_count - 1)
+        @trace_index -= 1
       when 'ArrowDown'
-        @trace_index += 1 if @trace_index < -1
+        @trace_index += 1
+      when 'PageUp'
+        @trace_index -= 10
+      when 'PageDown'
+        @trace_index += 10
+      when 'Home'
+        @trace_index = 0
+      when 'End'
+        @trace_index = last_index
       end
+
+      @trace_index = 0 if @trace_index.negative?
+      @trace_index = last_index if @trace_index > last_index
 
       true
     end

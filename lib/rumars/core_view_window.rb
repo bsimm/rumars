@@ -13,6 +13,7 @@ module RuMARS
       super(textwm, 'Core View Window')
       @mars = mars
       @view_top_line = 0
+      vertical_scrollbar.enable(true)
     end
 
     def update
@@ -41,6 +42,12 @@ module RuMARS
       end
 
       super
+    end
+
+    def update_vertical_scrollbar
+      line_length = @width - 2 - 5
+      line_count = (MemoryCore.size / line_length) + ((MemoryCore.size % line_length).zero? ? 0 : 1)
+      vertical_scrollbar.update(@height - 2, line_count, @height - 2, @view_top_line)
     end
 
     def getch(char)

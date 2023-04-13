@@ -41,7 +41,11 @@ module TextWM
 
       t.set_cursor_position(@col, @row)
       button_length = buttons.map { |b| "#{b.key}-#{b.label}" }.join.length
-      spacer = ' ' * ((@width - button_length) / (@buttons.length - 1))
+      spacer = if @buttons.length > 1 && @width > button_length
+                 ' ' * ((@width - button_length) / (@buttons.length - 1))
+               else
+                 ''
+               end
       t.print buttons.map { |b| "#{col.wrap(b.key).color(:red)}-#{b.label}" }.join(spacer)
     end
   end

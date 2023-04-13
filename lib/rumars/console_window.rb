@@ -84,10 +84,10 @@ module RuMARS
       # Ensure the core window centers the current program counter
       @mars.core_window.show_address = nil
       # Ensure the register window shows the latest trace
-      @mars.register_window.trace_index = -1
       prev_debug_level = @mars.debug_level
       @mars.debug_level = 3
       @mars.scheduler.step
+      @mars.register_window.trace_index = @mars.tracer.trace_count - 1
       @mars.debug_level = prev_debug_level
     end
 
@@ -173,11 +173,12 @@ module RuMARS
     end
 
     def change_current_warrior(index)
-      unless (warrior = @scheduler.get_warrior_by_index(index - 1))
+      unless (warrior = @mars.scheduler.get_warrior_by_index(index - 1))
         puts "Unknown warrior #{index}"
       end
 
       @current_warrior = warrior
+      puts "Switched to warrior '#{@current_warrior.name}'"
     end
 
     def list(args)

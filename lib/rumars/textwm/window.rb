@@ -2,6 +2,7 @@
 
 require_relative 'terminal'
 require_relative 'virtual_terminal'
+require_relative 'scrollbar'
 
 module TextWM
   class Window
@@ -19,6 +20,8 @@ module TextWM
       @virt_term = VirtualTerminal.new(1, 1)
       @active = false
       @show_cursor = false
+
+      @vertical_scrollbar = nil
     end
 
     # @param col [Integer]
@@ -35,6 +38,8 @@ module TextWM
     end
 
     def update
+      update_vertical_scrollbar
+
       print_frame_top
 
       # Frame sides and window content
@@ -45,8 +50,16 @@ module TextWM
       print_frame_bottom
     end
 
+    def update_vertical_scrollbar
+      @vertical_scrollbar&.update(@height - 2, @virt_term.line_count, @height - 2, @virt_term.view_top_line)
+    end
+
     def visible?
       @width.positive? && @height.positive?
+    end
+
+    def vertical_scrollbar
+      @vertical_scrollbar ||= Scrollbar.new(:vertical)
     end
 
     def show_cursor
@@ -72,6 +85,10 @@ module TextWM
         @virt_term.scroll(@height - 2)
       when 'PageDown'
         @virt_term.scroll(-(@height - 2))
+      when 'Home'
+        @virt_term.view_top_line = 0
+      when 'End'
+        @virt_term.view_top_line = @virt_term.line_count - (@height - 2)
       end
 
       true
@@ -91,6 +108,8 @@ module TextWM
       @t.set_cursor_position(@col, @row)
 
       padding = (@width - @name.length - 4) / 2
+      padding = 0 if padding.negative?
+
       fill = (@width - @name.length - 4) % 2
 
       @t.print @active ? '╔' : '┌'
@@ -105,13 +124,18 @@ module TextWM
       @t.print @active ? '║' : '│'
       @t.print @virt_term.line(i)
       @t.attributes_off
-      @t.print @active ? '║' : '│'
+      if @vertical_scrollbar&.enabled && @height >= 4
+        # We need a window height of at least 4 to show the scrollbar
+        @t.print @vertical_scrollbar.line(i)
+      else
+        @t.print @active ? '║' : '│'
+      end
     end
 
     def print_frame_bottom
       @t.set_cursor_position(@col, @row + @height - 1)
       @t.print @active ? '╚' : '└'
-      @t.print (@active ? '═' : '─') * (@width - 2)
+      @t.print (@active ? '═' : '─') * (@width - 2) if @width >= 2
       @t.print @active ? '╝' : '┘'
     end
   end

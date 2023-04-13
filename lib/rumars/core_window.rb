@@ -13,6 +13,7 @@ module RuMARS
       super(textwm, 'Core Window')
       @mars = mars
       @show_address = nil
+      vertical_scrollbar.enable(true)
     end
 
     def update
@@ -40,6 +41,10 @@ module RuMARS
       end
 
       super
+    end
+
+    def update_vertical_scrollbar
+      vertical_scrollbar.update(@height - 2, MemoryCore.size, @height - 2, @show_address)
     end
 
     def getch(char)

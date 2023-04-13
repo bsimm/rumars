@@ -4,7 +4,7 @@ require_relative 'string'
 
 module TextWM
   class VirtualTerminal
-    attr_accessor :right_clip, :bottom_clip
+    attr_accessor :right_clip, :bottom_clip, :view_top_line
 
     def initialize(columns, rows)
       # The size of the visible part of the buffer
@@ -110,6 +110,10 @@ module TextWM
       @buffer_lines[@cursor_row[0..@cursor_column]].visible_length
     end
 
+    def line_count
+      @buffer_lines.length
+    end
+
     def line(index)
       if (line = @buffer_lines[@view_top_line + index])
         length = line.visible_length
@@ -121,7 +125,7 @@ module TextWM
         end
       else
         # The line is empty. Blank out the screen line.
-        ' ' * @view_columns
+        @view_columns.negative? ? '' : ' ' * @view_columns
       end
     end
   end

@@ -48,11 +48,9 @@ module RuMARS
       @start_address = @start_address.eval(@labels, 0) unless @start_address.is_a?(Integer)
 
       @instructions.each_with_index do |instruction, address|
-        begin
-          instruction.evaluate_expressions(@labels, address)
-        rescue Expression::ExpressionError
-          raise Expression::ExpressionError, instruction.to_s
-        end
+        instruction.evaluate_expressions(@labels, address)
+      rescue Expression::ExpressionError
+        raise Expression::ExpressionError, instruction.to_s
       end
     end
 
