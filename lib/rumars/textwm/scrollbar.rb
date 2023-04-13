@@ -54,7 +54,7 @@ module TextWM
           slider_size = area_size
           slider_start = 0
         else
-          slider_size = (area_size * (@visible_space.to_f / @total_space)).to_i
+          slider_size = (area_size * (@visible_space.to_f / @total_space)).ceil
           slider_size = 1 if slider_size < 1
 
           slider_start = (area_size * (@position.to_f / @total_space)).to_i

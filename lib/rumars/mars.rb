@@ -78,7 +78,7 @@ module RuMARS
     end
 
     def load_warrior(file_name)
-      warrior = Warrior.new("Player #{@scheduler.warrior_count + 1}")
+      warrior = Warrior.new("Player #{@warriors.length + 1}")
       register_warrior(warrior)
 
       return nil unless warrior.parse_file(file_name, @settings, @log_window)

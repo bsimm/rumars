@@ -19,7 +19,8 @@ module RuMARS
       @virt_term.clear
       @virt_term.right_clip = @virt_term.bottom_clip = true
 
-      if (instruction = @mars.tracer.instruction(@trace_index))
+      pid = @mars.current_warrior.pid
+      if (instruction = @mars.tracer.instruction(@trace_index, pid))
         puts instruction
       end
 
@@ -27,11 +28,13 @@ module RuMARS
     end
 
     def update_vertical_scrollbar
-      vertical_scrollbar.update(@height - 2, @mars.tracer.trace_count, 1, @trace_index)
+      pid = @mars.current_warrior.pid
+      vertical_scrollbar.update(@height - 2, @mars.tracer.trace_count(pid), 1, @trace_index)
     end
 
     def getch(char)
-      last_index = @mars.tracer.trace_count - 1
+      pid = @mars.current_warrior.pid
+      last_index = @mars.tracer.trace_count(pid) - 1
 
       case char
       when 'ArrowUp'

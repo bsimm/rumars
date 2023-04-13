@@ -9,7 +9,7 @@ module RuMARS
 
     include Format
 
-    def initialize(address, instruction)
+    def initialize(address, instruction, pid)
       @address = address
       @instruction = instruction
       @cycle_counter = 0
@@ -18,6 +18,7 @@ module RuMARS
       @operation = ''
       @stores = []
       @pcs = nil
+      @pid = pid
     end
 
     def cycle(cycle_counter)
@@ -45,7 +46,7 @@ module RuMARS
     end
 
     def to_s
-      "IREG:    #{aformat(@address)}: #{iformat(@instruction)} CYCLE: #{@cycle_counter}\n" \
+      "IREG:    #{aformat(@address)}: #{iformat(@instruction)} CYCLE: #{format('%4d', @cycle_counter)}  PID: #{@pid}\n" \
         "A-OPERAND #{@a_operand}\n" \
         "B-OPERAND #{@b_operand}\n" \
         "OPERATION #{@operation}\n" \

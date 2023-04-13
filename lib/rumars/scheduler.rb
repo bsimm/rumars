@@ -87,11 +87,10 @@ module RuMARS
         # Load instruction
         core_address = MemoryCore.fold(address + warrior.base_address)
         instruction = @memory_core.peek(core_address)
-        @tracer&.next_instruction(core_address, instruction.to_s)
+        @tracer&.next_instruction(core_address, instruction.to_s, warrior.pid)
         @tracer&.cycle(@cycle_counter)
 
         # and execute it
-        @cycle_counter += 1
         unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
           if warrior.task_queue.empty?
             log("*** Warrior #{warrior.name} has died in cycle #{@cycle_counter} ***")
@@ -114,6 +113,7 @@ module RuMARS
           log("Jumped to #{aformat(next_pc)}: #{@memory_core.peek(next_pc)}")
         end
       end
+      @cycle_counter += 1
     end
 
     # @return [Array of Integer] List of absolute program counters for all warriors.

@@ -6,14 +6,18 @@ module RuMARS
   class Tracer
     def initialize
       @traces = []
+      @traces_by_pid = {}
       @current_instruction = nil
       @current_operand = nil
       @max_traces = 100
     end
 
-    def next_instruction(address, instruction)
+    def next_instruction(address, instruction, pid)
       @traces.shift if @traces.length >= @max_traces
-      @traces << (@current_instruction = TraceInstruction.new(address, instruction))
+      @traces << (@current_instruction = TraceInstruction.new(address, instruction, pid))
+      @traces_by_pid[pid] ||= []
+      @traces_by_pid[pid].shift if @traces_by_pid[pid].length >= @max_traces
+      @traces_by_pid[pid].append(@current_instruction)
     end
 
     def processing_instruction
@@ -45,7 +49,6 @@ module RuMARS
     end
 
     def log_load(address, instruction)
-      raise "instruction load" unless @current_operand
       @current_operand.log_load(address, instruction)
     end
 
@@ -53,12 +56,14 @@ module RuMARS
       (@current_operand || @current_instruction).log_store(address, instruction)
     end
 
-    def trace_count
-      @traces.length
+    def trace_count(pid = nil)
+      @traces_by_pid[pid] ||= [] if pid
+      pid ? @traces_by_pid[pid].length : @traces.length
     end
 
-    def instruction(index = -1)
-      @traces[index]
+    def instruction(index = -1, pid = nil)
+      @traces_by_pid[pid] ||= [] if pid
+      pid ? @traces_by_pid[pid][index] : @traces[index]
     end
   end
 end

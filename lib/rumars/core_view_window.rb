@@ -52,7 +52,7 @@ module RuMARS
 
     def getch(char)
       line_length = @width - 2 - 5
-      lines = MemoryCore.size / line_length + (MemoryCore.size % line_length ? 1 : 0)
+      lines = (MemoryCore.size / line_length) + (MemoryCore.size % line_length ? 1 : 0)
       last_top_line = lines - (@height - 2)
       last_top_line = 0 if last_top_line.negative?
 
@@ -104,7 +104,5 @@ module RuMARS
         '?'
       end
     end
-
-
   end
 end

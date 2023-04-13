@@ -87,7 +87,7 @@ module RuMARS
       prev_debug_level = @mars.debug_level
       @mars.debug_level = 3
       @mars.scheduler.step
-      @mars.register_window.trace_index = @mars.tracer.trace_count - 1
+      @mars.register_window.trace_index = @mars.tracer.trace_count(@mars.current_warrior.pid) - 1
       @mars.debug_level = prev_debug_level
     end
 
