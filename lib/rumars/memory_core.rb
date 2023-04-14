@@ -64,6 +64,25 @@ module RuMARS
       base_address
     end
 
+    def save_warrior(file_name, start_address, end_address)
+      begin
+        file = File.open(file_name, 'w')
+
+        file.puts(';redcode-94')
+
+        start_address.upto(end_address) do |address|
+          instruction = @instructions[address]
+          file.puts("#{' ' * 12}#{instruction}")
+        end
+        file.close
+      rescue IOError => e
+        puts "Error writing file '#{file_name}': #{e.message}"
+        return false
+      end
+
+      true
+    end
+
     def peek(address)
       raise ArgumentError, "address #{address} out of range" if address.negative? || address >= MemoryCore.size
 

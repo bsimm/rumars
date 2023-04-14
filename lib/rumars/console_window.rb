@@ -87,7 +87,7 @@ module RuMARS
       prev_debug_level = @mars.debug_level
       @mars.debug_level = 3
       @mars.scheduler.step
-      @mars.register_window.trace_index = @mars.tracer.trace_count(@mars.current_warrior.pid) - 1
+      @mars.register_window.trace_index = @mars.tracer.trace_count(@current_warrior.pid) - 1
       @mars.debug_level = prev_debug_level
     end
 
@@ -134,12 +134,16 @@ module RuMARS
         @mars.scheduler.battle
       when 'break', 'br'
         toggle_breakpoint(args)
+      when 'create', 'cr'
+        create(args)
       when 'debug'
         @mars.debug_level = args.first&.to_i || 0
       when 'exit', 'ex'
         @textwm.exit_application
       when 'focus', 'fo'
         change_current_warrior(args.first&.to_i)
+      when 'goto', 'go'
+        goto(args)
       when 'list', 'li'
         list(args)
       when 'load', 'lo'
@@ -154,11 +158,17 @@ module RuMARS
         restart
       when 'run', 'ru'
         run(args)
+      when 'save', 'sa'
+        save(args)
       when 'step', 'st'
         step
       else
         puts "Unknown command: #{command}"
       end
+    end
+
+    def create(args)
+      @current_warrior = @mars.create_warrior(args.first)
     end
 
     def load_warriors(files)
@@ -179,6 +189,12 @@ module RuMARS
 
       @current_warrior = warrior
       puts "Switched to warrior '#{@current_warrior.name}'"
+    end
+
+    def goto(args)
+      return unless (address = parse_address_expression(args.join(' ')))
+
+      @mars.current_warrior&.goto(address)
     end
 
     def list(args)
@@ -232,6 +248,24 @@ module RuMARS
 
       @mars.memory_core.poke(address, instruction)
       @mars.core_window.show_address = address
+    end
+
+    def save(args)
+      if args.empty?
+        puts 'Usage: save <filename.red> [start address] [end address]'
+        return
+      end
+
+      file_name = args[0]
+      # Make sure that the filename has the proper '.red' suffix
+      file_name += '.red' unless file_name[-4..] != '.red'
+      start_address = MemoryCore.fold(args[1]&.to_i || 0)
+      end_address = MemoryCore.fold(args[2]&.to_i || (MemoryCore.size - 1))
+
+      return unless @mars.memory_core.save_warrior(file_name, start_address, end_address)
+
+      puts "Warrior #{file_name} has been saved"
+      @current_warrior.file_name = file_name
     end
 
     def parse_address_expression(term)

@@ -24,6 +24,10 @@ module RuMARS
 
     include Format
 
+    # We could support more, but the user interface will become clobbered with
+    # more than 4 warriors.
+    MAX_WARRIORS = 4
+
     def initialize(argv = [])
       # The default settings for certain configuration options. They can be
       # changed via commandline arguments.
@@ -77,9 +81,18 @@ module RuMARS
       end
     end
 
+    def create_warrior(name)
+      warrior = Warrior.new(name || "Player #{@warriors.length + 1}")
+      return unless register_warrior(warrior)
+
+      warrior.parse(";redcode\n DAT $0, $0\n", @settings, @log_window)
+
+      add_warrior(warrior)
+    end
+
     def load_warrior(file_name)
       warrior = Warrior.new("Player #{@warriors.length + 1}")
-      register_warrior(warrior)
+      return unless register_warrior(warrior)
 
       return nil unless warrior.parse_file(file_name, @settings, @log_window)
 
@@ -88,9 +101,9 @@ module RuMARS
 
     def add_warrior(warrior)
       # Only needed for spec tests.
-      register_warrior(warrior)
+      return unless register_warrior(warrior)
 
-      if (length = warrior.program.instructions.length) > @settings.max_length
+      if warrior.program && (length = warrior.program.instructions.length) > @settings.max_length
         @log_window.puts "Program of warrior #{warrior.name} must not be longer than " \
                          "#{@settings.max_length} instructions. I has #{length} instructions."
         return nil
@@ -191,9 +204,17 @@ module RuMARS
     end
 
     def register_warrior(warrior)
-      return if @warriors.include?(warrior)
+      # This method may be called twice. That's not a mistake.
+      return true if @warriors.include?(warrior)
+
+      if @warriors.length >= MAX_WARRIORS
+        puts "You can't use more than #{MAX_WARRIORS} warriors simultaneously"
+        return false
+      end
 
       @warriors << warrior
+
+      true
     end
   end
 end

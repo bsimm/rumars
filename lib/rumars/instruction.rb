@@ -64,6 +64,7 @@ module RuMARS
 
     def a_number=(number)
       @a_operand.number = number
+      self.class.tracer&.log_store(@address, to_s)
     end
 
     def increment_a_number
@@ -84,6 +85,7 @@ module RuMARS
 
     def b_number=(number)
       @b_operand.number = number
+      self.class.tracer&.log_store(@address, to_s)
     end
 
     def increment_b_number

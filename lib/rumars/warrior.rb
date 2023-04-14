@@ -60,6 +60,8 @@ module RuMARS
     end
 
     def reload(settings, logger)
+      return unless @file_name
+
       begin
         modification_time = File.mtime(@file_name)
       rescue Errno::ENOENT
@@ -85,6 +87,11 @@ module RuMARS
       # Load the program start address into the task queue. We always start with
       # a single thread.
       @task_queue = [@program.start_address]
+    end
+
+    # Change the current PC to the new address.
+    def goto(address)
+      @task_queue[0] = address
     end
 
     def unload_program
