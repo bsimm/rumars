@@ -4,7 +4,6 @@ require_relative 'textwm/window'
 
 module RuMARS
   class RegisterWindow < TextWM::Window
-    attr_reader :current_warrior
     attr_accessor :trace_index
 
     def initialize(textwm, mars)
@@ -19,7 +18,7 @@ module RuMARS
       @virt_term.clear
       @virt_term.right_clip = @virt_term.bottom_clip = true
 
-      pid = @mars.current_warrior.pid
+      pid = @mars.current_warrior&.pid
       if (instruction = @mars.tracer.instruction(@trace_index, pid))
         puts instruction
       end
@@ -28,12 +27,12 @@ module RuMARS
     end
 
     def update_vertical_scrollbar
-      pid = @mars.current_warrior.pid
+      pid = @mars.current_warrior&.pid
       vertical_scrollbar.update(@height - 2, @mars.tracer.trace_count(pid), 1, @trace_index)
     end
 
     def getch(char)
-      pid = @mars.current_warrior.pid
+      pid = @mars.current_warrior&.pid
       last_index = @mars.tracer.trace_count(pid) - 1
 
       case char

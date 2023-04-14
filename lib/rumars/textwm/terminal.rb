@@ -62,6 +62,17 @@ module TextWM
     }.freeze
     KEYCODES = KEYSTROKES.invert.freeze
 
+    FGCOLORS = {
+      black: 30, red: 31, green: 32, yellow: 33, blue: 34, magenta: 35, cyan: 36, white: 37,
+      brightblack: 90, brightred: 91, brightgreen: 92, brightyellow: 93,
+      brightblue: 94, brightmagenta: 95, brightcyan: 96, brightwhite: 97
+    }.freeze
+    BGCOLORS = {
+      black: 40, red: 41, green: 42, yellow: 43, blue: 44, magenta: 45, cyan: 46, white: 47,
+      brightblack: 100, brightred: 101, brightgreen: 102, brightyellow: 103,
+      brightblue: 104, brightmagenta: 105, brightcyan: 106, brightwhite: 107
+    }.freeze
+
     def initialize(out = $stdout, inp = $stdin)
       @out = out
       @inp = inp
@@ -204,6 +215,38 @@ module TextWM
     # Turn reverse video mode on
     def reverse_on
       send("\e[7m")
+    end
+
+    #
+    # Color attributes
+    #
+
+    def color(foreground, background)
+      foreground = FGCOLORS[foreground] if FGCOLORS.include?(foreground)
+      background = BGCOLORS[background] if BGCOLORS.include?(background)
+
+      send("\e[#{foreground};#{background}m")
+    end
+
+    def ansi_code(command, *args)
+      case command
+      when :color
+        foreground = args[0].is_a?(Integer) ? args[0] : FGCOLORS[args[0]]
+        background = args[1].is_a?(Integer) ? args[1] : BGCOLORS[args[1]]
+        "\e[#{foreground};#{background}m"
+      when :attributes_off
+        "\e[0m"
+      when :bold
+        "\e[1m"
+      when :low_intensity
+        "\e[2m"
+      when :underline
+        "\e[4m"
+      when :reverse
+        "\e[7m"
+      else
+        "unknown ANSI command #{command}"
+      end
     end
 
     private

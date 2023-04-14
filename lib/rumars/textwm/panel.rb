@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'rainbow'
-
 module TextWM
   class Panel
     Button = Struct.new(:key, :label, :callback)
@@ -10,6 +8,10 @@ module TextWM
       @textwm = textwm
       @textwm.register_panel(self)
       @buttons = []
+
+      @accent_color = :red
+      @text_color = :black
+      @background_color = :white
     end
 
     def add_button(key, label, &callback)
@@ -35,29 +37,60 @@ module TextWM
 
     def update
       t = @textwm.terminal
-      col = Rainbow.new
       # Ignore buttons that have no label.
       buttons = @buttons.clone.delete_if { |b| b.label.nil? }
 
-      buttons_length = buttons.map { |b| "#{b.key}-#{b.label}" }.join.length
-      spacer_length = if buttons.length > 1 && @width > buttons_length
-                        (@width - buttons_length) / (buttons.length - 1)
-                      else
-                        0
-                      end
-      colored_buttons = buttons.map { |b| "#{col.wrap(b.key).color(:red)}-#{b.label}" }
-      extra_spaces = @width - buttons_length - (spacer_length * (buttons.length - 1))
-      extra_spaces = 0 if extra_spaces.negative?
-
-      button_str = +''
-      colored_buttons[0..-2].each do |button|
-        button_str += button + (' ' * (spacer_length + (extra_spaces.positive? ? 1 : 0)))
-        extra_spaces -= 1
-      end
-      button_str += colored_buttons.last
-
       t.set_cursor_position(@col, @row)
-      t.print button_str
+
+      if buttons.empty?
+        # No buttons. Just draw a blank line.
+        cprint(@text_color, @background_color, ' ' * @width)
+        return
+      end
+
+      # Determine the size of the spaces between the buttons. The left edge
+      # of the first button and the right edge of the last button should be
+      # aligend with the view edges.
+      buttons_length = buttons.map { |b| "#{b.key}-#{b.label}" }.join.length
+      space_count = buttons.length - 1
+      total_spaces_length = @width - buttons_length
+
+      if space_count.zero?
+        # We just have a single button that gets centered on the line.
+        spacer_length = total_spaces_length / 2
+        extra_spaces = total_spaces_length % 2
+
+        cprint(@text_color, @background_color, ' ' * (spacer_length + extra_spaces))
+        print_button(buttons.first)
+        cprint(@text_color, @background_color, ' ' * spacer_length)
+      else
+        # We have two or more buttons.
+        spacer_length = total_spaces_length / space_count
+        extra_spaces = total_spaces_length % space_count
+
+        buttons[0..-2].each do |button|
+          print_button(button)
+          cprint(@text_color, @background_color, ' ' * (spacer_length + (extra_spaces.positive? ? 1 : 0)))
+          extra_spaces -= 1
+        end
+        print_button(buttons.last)
+      end
+    end
+
+    private
+
+    def print_button(button)
+      @textwm.terminal.bold_on
+      cprint(@accent_color, @background_color, button.key)
+      cprint(@text_color, @background_color, "-#{button.label}")
+    end
+
+    def cprint(foreground, background, text)
+      t = @textwm.terminal
+
+      t.color(foreground, background)
+      t.print text
+      t.attributes_off
     end
   end
 end

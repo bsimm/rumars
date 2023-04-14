@@ -19,6 +19,7 @@ module RuMARS
     def update
       @virt_term.clear
       @virt_term.right_clip = @virt_term.bottom_clip = true
+      t = @textwm.terminal
 
       current_warrior = @mars.console_window.current_warrior
       program_counters = @mars.scheduler.program_counters(current_warrior)
@@ -33,8 +34,10 @@ module RuMARS
         line = "#{instruction.pid}:#{aformat(address)}#{breakpoint}#{pc} " \
                "#{format('%-16s', current_warrior&.resolve_address(address) || '')} " \
                "#{instruction}"
+        line += ' ' * (@width - 2 - line.length) if line.length < @width
+
         if program_counters.first == address
-          puts "\e[7m#{line}\e[0m"
+          puts "#{t.ansi_code(:reverse)}#{line}#{t.ansi_code(:attributes_off)}"
         else
           puts line
         end

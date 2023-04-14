@@ -22,6 +22,15 @@ module TextWM
       @show_cursor = false
 
       @vertical_scrollbar = nil
+
+      @active_frame_fg_color = :white
+      @active_frame_bg_color = :blue
+      @passive_frame_fg_color = :white
+      @passive_frame_bg_color = :blue
+      @active_window_title_fg_color = :black
+      @active_window_title_bg_color = :white
+      @passive_window_title_fg_color = :white
+      @passive_window_title_bg_color = :blue
     end
 
     # @param col [Integer]
@@ -112,9 +121,12 @@ module TextWM
 
       fill = (@width - @name.length - 4) % 2
 
+      set_frame_colors
       @t.print @active ? '╔' : '┌'
       @t.print (@active ? '═' : '─') * padding
+      set_title_colors
       @t.print " #{@name} "
+      set_frame_colors
       @t.print (@active ? '═' : '─') * (padding + fill)
       @t.print @active ? '╗' : '┐'
     end
@@ -124,6 +136,7 @@ module TextWM
       @t.print @active ? '║' : '│'
       @t.print @virt_term.line(i)
       @t.attributes_off
+      set_frame_colors
       if @vertical_scrollbar&.enabled && @height >= 4
         # We need a window height of at least 4 to show the scrollbar
         @t.print @vertical_scrollbar.line(i)
@@ -137,6 +150,23 @@ module TextWM
       @t.print @active ? '╚' : '└'
       @t.print (@active ? '═' : '─') * (@width - 2) if @width >= 2
       @t.print @active ? '╝' : '┘'
+      @t.attributes_off
+    end
+
+    def set_frame_colors
+      if @active
+        @t.color(@active_frame_fg_color, @active_frame_bg_color)
+      else
+        @t.color(@passive_frame_fg_color, @passive_frame_bg_color)
+      end
+    end
+
+    def set_title_colors
+      if @active
+        @t.color(@active_window_title_fg_color, @active_window_title_bg_color)
+      else
+        @t.color(@passive_window_title_fg_color, @passive_window_title_bg_color)
+      end
     end
   end
 end

@@ -19,8 +19,8 @@ module RuMARS
     def update
       @virt_term.clear
       @virt_term.bottom_clip = true
+      t = @textwm.terminal
 
-      term = Rainbow.new
       program_counters = @mars.scheduler.program_counters
       core = @mars.memory_core
       line_length = @width - 2 - 5
@@ -29,14 +29,17 @@ module RuMARS
         line_address = (@view_top_line + line) * line_length
         break if line_address >= MemoryCore.size
 
+        print t.ansi_code(:color, :white, :blue)
         print "#{aformat(line_address)}:"
         line_length.times do |col|
           address = line_address + col
           break if address >= MemoryCore.size
 
           instruction = core.peek(address)
-          print term.wrap(instruction_character(instruction)).color(COLORS[instruction.pid])
-                    .background(program_counters.include?(address) ? :white : :black)
+
+          fg_color = TextWM::Terminal::FGCOLORS.keys[8 + instruction.pid]
+          print t.ansi_code(:color, fg_color, program_counters.include?(address) ? :white : :blue)
+          print instruction_character(instruction)
         end
         puts
       end
