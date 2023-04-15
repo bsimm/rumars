@@ -34,7 +34,8 @@ module RuMARS
     end
 
     def operation(text)
-      @operation = text
+      @operation += '; ' unless @operation.empty?
+      @operation += text
     end
 
     def program_counters(pcs)
@@ -57,7 +58,7 @@ module RuMARS
     def pcs_to_s
       return '' unless @pcs
 
-      return "#{@pcs.join(' ')}" if @pcs.length < 8
+      return @pcs.join(' ') if @pcs.length < 8
 
       "#{@pcs[0..3].join(' ')}...#{@pcs[-3..].join(' ')}"
     end

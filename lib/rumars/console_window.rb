@@ -117,9 +117,6 @@ module RuMARS
       @mars.reload_warriors_into_core
     end
 
-    def reload
-    end
-
     private
 
     def prompt
@@ -131,7 +128,7 @@ module RuMARS
 
       case args.shift
       when 'battle', 'ba'
-        @mars.scheduler.battle
+        battle(args)
       when 'break', 'br'
         toggle_breakpoint(args)
       when 'create', 'cr'
@@ -167,6 +164,46 @@ module RuMARS
       end
     end
 
+    def battle(args)
+      log = @mars.log_window
+      puts 'Type CTRL-C to interrupt the battle'
+
+      rounds = args.first&.to_i || @mars.settings[:rounds]
+
+      @mars.warriors.each(&:reset_scores)
+      Signal.trap('SIGINT') { throw :signal_interrupt }
+      catch :signal_interrupt do
+        rounds.times do |round|
+          @mars.warriors_window.round = round
+          restart
+          8000.times do |i|
+            @mars.scheduler.step
+            if ((i + 1) % 10).zero?
+              @mars.warriors_window.cycle = i
+              @textwm.update_windows
+            end
+          end
+
+          log.puts "Results of round #{round}   Score Kills  Hits"
+          warriors = @mars.warriors.sort { |w1, w2| w2.score <=> w1.score }
+          warriors.first.wins += 1
+          warriors.each_with_index do |warrior, index|
+            log.puts "#{index + 1}. #{format("%-16s  %5d %5d %5d", warrior.name, warrior.score, warrior.kills, warrior.hits)}"
+          end
+        end
+      end
+      Signal.trap('SIGINT', 'DEFAULT')
+
+      warriors = @mars.warriors.sort! { |w1, w2| w2.wins <=> w1.wins }
+      log.puts 'Results of the battle   Wins'
+      place = 0
+      previous_wins = -1
+      warriors.each do |warrior|
+        place += 1 if previous_wins != warrior.wins
+        log.puts "#{place}. #{format("%-16s    %5d", warrior.name, warrior.wins)}"
+      end
+    end
+
     def create(args)
       @current_warrior = @mars.create_warrior(args.first)
     end
@@ -195,6 +232,7 @@ module RuMARS
       return unless (address = parse_address_expression(args.join(' ')))
 
       @mars.current_warrior&.goto(address)
+      @mars.core_window.show_address = address
     end
 
     def list(args)

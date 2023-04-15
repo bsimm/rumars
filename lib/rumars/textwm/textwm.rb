@@ -4,8 +4,6 @@ require_relative 'terminal'
 require_relative 'window'
 require_relative 'splits'
 
-Signal.trap('WINCH') { throw :signal_terminal_resized }
-
 module TextWM
   class WindowManager
     attr_reader :terminal
@@ -59,7 +57,11 @@ module TextWM
     end
 
     def update_windows
-      @windows.each(&:update)
+      @windows.each do |window|
+        next unless window.visible?
+
+        window.update
+      end
       @panels.each(&:update)
 
       @active_window.show_cursor
@@ -73,10 +75,12 @@ module TextWM
       loop do
         update_windows
 
+        Signal.trap('WINCH') { throw :signal_terminal_resized }
         c = nil
         catch(:signal_terminal_resized) do
           c = @terminal.getch
         end
+        Signal.trap('WINCH', 'DEFAULT')
 
         process_keystroke(c)
 

@@ -48,6 +48,10 @@ module RuMARS
           @settings[:min_distance] = int
         end
 
+        p.on('--rounds N', '-r', Integer, "Rounds to play [#{@settings[:rounds]}]") do |int|
+          @settings[:rounds] = int
+        end
+
         p.on('-h', '--help', 'Print this help') do
           puts p
           exit

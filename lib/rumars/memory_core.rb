@@ -10,9 +10,8 @@ module RuMARS
   # addressed, the address space wraps around so that the memory appears as a
   # circular space.
   class MemoryCore
+    attr_reader :warriors
     attr_accessor :tracer
-
-    COLORS = %i[silver red green yellow blue magenta cyan aqua indianred]
 
     @size = 8000
 
@@ -92,7 +91,17 @@ module RuMARS
     def poke(address, instruction)
       raise ArgumentError, "address #{address} out of range" if address.negative? || address >= MemoryCore.size
 
+      raise "Bad instruction owner: #{instruction}" if warriors.length.positive? && instruction.pid.zero?
       instruction.address = address
+      if @instructions[address]
+        old_pid = @instructions[address].pid
+        if old_pid.positive? && old_pid != instruction.pid
+          # One warrior is overwriting an instruction of another warrior. We call
+          # this a hit!
+          @warriors[instruction.pid - 1].hits += 1
+        end
+      end
+
       @instructions[address] = instruction
     end
 

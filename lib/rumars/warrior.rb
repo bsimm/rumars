@@ -8,7 +8,7 @@ module RuMARS
   # programs.
   class Warrior
     attr_reader :task_queue, :base_address, :name, :program, :pid
-    attr_accessor :max_tasks, :file_name
+    attr_accessor :max_tasks, :file_name, :hits, :kills, :wins
 
     def initialize(name)
       @task_queue = []
@@ -19,6 +19,13 @@ module RuMARS
       @timestamp = nil
       @base_address = nil
       @pid = nil
+      reset_scores
+    end
+
+    def reset_scores
+      @hits = 0
+      @kills = 0
+      @wins = 0
     end
 
     def parse(redcode, settings, logger)
@@ -87,6 +94,9 @@ module RuMARS
       # Load the program start address into the task queue. We always start with
       # a single thread.
       @task_queue = [@program.start_address]
+
+      @hits = 0
+      @kills = 0
     end
 
     # Change the current PC to the new address.
@@ -132,6 +142,12 @@ module RuMARS
 
     def resolve_address(address)
       @program&.resolve_address(address - @base_address) || ''
+    end
+
+    def score
+      # We'll have to figure out what the right balance is. Kills are much
+      # harder to get, so we weight them stronger.
+      (@kills * 20) + @hits
     end
   end
 end

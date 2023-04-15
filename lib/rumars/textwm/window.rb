@@ -43,7 +43,7 @@ module TextWM
       @width = width
       @height = height
 
-      @virt_term.resize(@width - 2, @height - 2)
+      @virt_term.resize(@width - 2, @height - 2) if @width > 2 && @height > 2
     end
 
     def update

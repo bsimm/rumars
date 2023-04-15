@@ -349,33 +349,40 @@ module RuMARS
       when 'A'
         self.class.tracer&.operation('Replacing B operand A-Number with A operand A-Number')
         irb.a_number = ira.a_number
+        irb.pid = bus.pid
       when 'B'
         self.class.tracer&.operation('Replacing B operand B-Number with A operand B-Number')
         irb.b_number = ira.b_number
+        irb.pid = bus.pid
       when 'AB'
         self.class.tracer&.operation('Replacing B operand B-Number with A operand A-Number')
         irb.b_number = ira.a_number
+        irb.pid = bus.pid
       when 'BA'
         self.class.tracer&.operation('Replacing B operand A-Number with A operand B-Number')
         irb.a_number = ira.b_number
+        irb.pid = bus.pid
       when 'F'
         self.class.tracer&.operation('Repl. B op A-Num with A op A-Num and B op B-Num with A op B-Num')
         irb.a_number = ira.a_number
         irb.b_number = ira.b_number
+        ira.pid = bus.pid
+        irb.pid = bus.pid
       when 'X'
         self.class.tracer&.operation('Repl. B op A-Num with A op B-Num and B op B-Num with A op A-Num')
         irb.a_number = ira.b_number
         irb.b_number = ira.a_number
+        ira.pid = bus.pid
+        irb.pid = bus.pid
       when 'I'
         # Copies entire instruction
         self.class.tracer&.operation('Copy A instruction into B instruction')
-        bus.memory_core.store_relative(bus.base_address, bus.program_counter, wpb, ira).deep_copy
+        # Ensure ownership of modified instruction
+        ira.pid = bus.pid
+        bus.memory_core.store_relative(bus.base_address, bus.program_counter, wpb, ira)
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
       end
-
-      # Ensure ownership of modified instruction
-      irb.pid = bus.pid
     end
 
     def seq(bus)

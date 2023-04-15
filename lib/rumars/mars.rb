@@ -13,6 +13,7 @@ require_relative 'core_view_window'
 require_relative 'log_window'
 require_relative 'console_window'
 require_relative 'register_window'
+require_relative 'warriors_window'
 require_relative 'format'
 
 module RuMARS
@@ -20,7 +21,10 @@ module RuMARS
   # https://vyznev.net/corewar/guide.html
   # http://www.koth.org/info/icws94.html
   class MARS
-    attr_reader :debug_level, :settings, :memory_core, :scheduler, :tracer, :core_window, :console_window, :register_window
+    attr_reader :debug_level, :settings,
+                :memory_core, :scheduler, :tracer, :warriors,
+                :core_window, :console_window, :log_window,
+                :register_window, :warriors_window
 
     include Format
 
@@ -32,7 +36,7 @@ module RuMARS
       # The default settings for certain configuration options. They can be
       # changed via commandline arguments.
       @settings = Settings.new(core_size: 8000, max_cycles: 80_000,
-                               max_processes: 8000, max_length: 100, min_distance: 100)
+                               max_processes: 8000, max_length: 100, min_distance: 100, rounds: 1)
       # Process the commandline arguments to adjust configuration options.
       @files = CommandlineArgumentsParser.new(@settings).parse(argv)
 
@@ -136,19 +140,31 @@ module RuMARS
     def toggle_core_view
       # The core view can be invisble, small and big. The other panes will be
       # adjusted accordingly.
-      current_size = @vsplits.ratios[1]
+      current_size = @vsplits2.ratios[1]
       if current_size == 0
         # The core view is currently invisible. Make it small.
-        @vsplits.ratios = [nil, 10, 10, 1]
+        @vsplits1.ratios = [nil, 10, 1]
+        @vsplits2.ratios = [nil, 10]
       elsif current_size == 10
         # The core view is currently small. Make it big.
-        @vsplits.ratios = [3, nil, 4, 1]
-        @reg_log_splits.ratios = [0, 3]
+        @vsplits1.ratios = [nil, 4, 1]
+        @vsplits2.ratios = [0, nil]
+        @vsplits3.ratios = [0, 3]
       else
         # The core view is currently big. Hide it.
-        @vsplits.ratios = [nil, 0, 10, 1]
-        @reg_log_splits.ratios = [12, nil]
+        @vsplits1.ratios = [nil, 10, 1]
+        @vsplits2.ratios = [nil, 0]
+        @vsplits3.ratios = [12, nil]
       end
+      @textwm.resize
+      @textwm.update_windows
+    end
+
+    def toggle_warriors_window
+      current_size = @hsplits1.ratios[1]
+      # Toggle the width between 21 and 0
+      @hsplits1.ratios = [nil, current_size.zero? ? 21 : 0]
+
       @textwm.resize
       @textwm.update_windows
     end
@@ -156,16 +172,44 @@ module RuMARS
     private
 
     def setup_windows
-      @vsplits = @textwm.split(:vertical, nil, 0, 10, 1)
-      hsplits = @vsplits.assign(0, TextWM::Splits.new(:horizontal, 50, nil))
-      @vsplits.assign(1, @coredump_window = CoreViewWindow.new(@textwm, self))
-      @vsplits.assign(2, @console_window = ConsoleWindow.new(@textwm, self))
-      @vsplits.assign(3, setup_panel)
-
-      hsplits.assign(0, @core_window = CoreWindow.new(@textwm, self))
-      @reg_log_splits = hsplits.assign(1, TextWM::Splits.new(:vertical, 12, nil))
-      @reg_log_splits.assign(0, @register_window = RegisterWindow.new(@textwm, self))
-      @reg_log_splits.assign(1, @log_window = LogWindow.new(@textwm))
+      # +-vsplits1----------------------------+
+      # |+-hsplits1--------------------------+|
+      # ||+-vsplits2---------------++-------+||
+      # |||+-hsplits2-------------+||       |||
+      # ||||+------++-vsplits3---+|||       |||
+      # |||||      ||+----------+||||warrior|||
+      # |||||core  |||register  |||||window |||
+      # |||||window|||window    |||||       |||
+      # |||||      ||+----------+||||       |||
+      # |||||      ||+----------+||||       |||
+      # |||||      |||log window|||||       |||
+      # |||||      ||+----------+||||       |||
+      # ||||+------++-vsplits3---+|||       |||
+      # |||+-hsplits2-------------+||       |||
+      # |||+----------------------+||       |||
+      # ||||core view window      |||       |||
+      # |||+----------------------+||       |||
+      # ||+-vsplits2---------------++-------+||
+      # |+-hsplits2--------------------------+|
+      # |+-----------------------------------+|
+      # ||console window                     ||
+      # |+-----------------------------------+|
+      # |+-----------------------------------+|
+      # ||F-button panel                     ||
+      # |+-----------------------------------+|
+      # +-vsplits1----------------------------+
+      @vsplits1 = @textwm.split(:vertical, nil, 10, 1)
+      @hsplits1 = @vsplits1.assign(0, TextWM::Splits.new(:horizontal, nil, 0))
+      @vsplits2 = @hsplits1.assign(0, TextWM::Splits.new(:vertical, nil, 0))
+      hsplits2 = @vsplits2.assign(0, TextWM::Splits.new(:horizontal, 50, nil))
+      hsplits2.assign(0, @core_window = CoreWindow.new(@textwm, self))
+      @vsplits3 = hsplits2.assign(1, TextWM::Splits.new(:vertical, 12, nil))
+      @vsplits3.assign(0, @register_window = RegisterWindow.new(@textwm, self))
+      @vsplits3.assign(1, @log_window = LogWindow.new(@textwm))
+      @vsplits2.assign(1, @core_view_window = CoreViewWindow.new(@textwm, self))
+      @hsplits1.assign(1, @warriors_window = WarriorsWindow.new(@textwm, self))
+      @vsplits1.assign(1, @console_window = ConsoleWindow.new(@textwm, self))
+      @vsplits1.assign(2, setup_panel)
 
       @textwm.resize
       @textwm.focus_window(@console_window)
@@ -179,7 +223,7 @@ module RuMARS
       panel.add_button('F2', 'PrevWin') { @textwm.focus_window(@textwm.prev_window) }
       panel.add_button('F3', 'NextWin') { @textwm.focus_window(@textwm.next_window) }
       panel.add_button('F4', 'CoreView') { toggle_core_view }
-      panel.add_button('F5', 'Reload') {}
+      panel.add_button('F5', 'Warriors') { toggle_warriors_window }
       panel.add_button('F6', 'Restart') { @console_window.restart }
       panel.add_button('F7', 'Brkpt') { @console_window.toggle_breakpoint }
       panel.add_button('F8', 'Step') { @console_window.step }

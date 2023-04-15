@@ -47,6 +47,8 @@ module TextWM
     private
 
     def calc_sizes(total, ratios)
+      return Array.new(ratios.length, 0) if total.zero?
+
       sizes = []
 
       sum = 0

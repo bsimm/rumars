@@ -23,7 +23,7 @@ module RuMARS
     end
 
     def log(text)
-      @logger.puts text
+      @logger.puts text if @debug_level.positive?
     end
 
     def get_warrior_by_index(index)
@@ -51,8 +51,8 @@ module RuMARS
             break
           end
         end
-        Signal.trap('SIGINT', 'DEFAULT')
       end
+      Signal.trap('SIGINT', 'DEFAULT')
     end
 
     # Run until only a single warrior is still alive
@@ -92,6 +92,13 @@ module RuMARS
 
         # and execute it
         unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
+          if (instruction_pid = @memory_core.peek(address).pid).positive? && instruction_pid != warrior.pid
+            # The current warrior lost a thread due to hitting a bad instruction
+            # belonging to another warror. We credit that warrior to have killed
+            # the thread of the current warrior.
+            @memory_core.warriors[instruction_pid - 1].kills += 1
+          end
+
           if warrior.task_queue.empty?
             log("*** Warrior #{warrior.name} has died in cycle #{@cycle_counter} ***")
           else
