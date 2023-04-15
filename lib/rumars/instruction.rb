@@ -195,28 +195,28 @@ module RuMARS
 
       case @modifier
       when 'A'
-        irb.a_number = arith_op(irb.a_number, op, ira.a_number)
+        irb.a_number = arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number)
       when 'B'
-        irb.b_number = arith_op(irb.b_number, op, ira.b_number)
+        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number)
       when 'AB'
-        irb.b_number = arith_op(irb.b_number, op, ira.a_number)
+        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number)
       when 'BA'
-        irb.a_number = arith_op(irb.a_number, op, ira.b_number)
+        irb.a_number = arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number)
       when 'F', 'I'
         begin
-          irb.a_number = arith_op(irb.a_number, op, ira.a_number)
+          irb.a_number = arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number)
         rescue DivBy0Error => e
         end
         # The b operation must be computed even if the a operation had a division by 0
-        irb.b_number = arith_op(irb.b_number, op, ira.b_number)
+        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number)
         raise e if e
       when 'X'
         begin
-          irb.b_number = arith_op(irb.a_number, op, ira.b_number)
+          irb.a_number = arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number)
         rescue DivBy0Error => e
         end
         # The b operation must be computed even if the a operation had a division by 0
-        irb.a_number = arith_op(irb.b_number, op, ira.a_number)
+        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number)
         raise e if e
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -224,27 +224,52 @@ module RuMARS
       irb.pid = bus.pid
     end
 
-    def arith_op(op1, operator, op2)
+    def arith_op(tag1, op1, operator, tag2, op2)
+      to1 = "#{tag1}:#{op1}"
+      to2 = "#{tag2}:#{op2}"
+
       case operator
       when '+'
+        # The add instruction adds the number(s) from the address referenced by
+        # the A operand to the number(s) at the address referenced by the B
+        # operand.
         result = MemoryCore.fold(op1 + op2)
-        self.class.tracer&.operation("Computing #{op1} + #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{to1} + #{to2} = #{tag1}:#{result}")
       when '-'
+        # The sub instruction subtracts the number(s) from the address
+        # referenced by the A operand from the number(s) at the address
+        # referenced by the B operand.
         result = MemoryCore.fold(op1 - op2)
-        self.class.tracer&.operation("Computing #{op1} - #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{to1} - #{to2} = #{tag1}:#{result}")
       when '*'
+        # The mul instruction multiplies the number(s) from the address
+        # referenced by the A operand by the number(s) at the address
+        # referenced by the B operand.
         result = MemoryCore.fold(op1 * op2)
-        self.class.tracer&.operation("Computing #{op1} * #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{to1} * #{to2} = #{tag1}:#{result}")
       when '/'
+        # The div instruction divides the number(s) from the address referenced
+        # by the B operand by the number(s) at the address referenced by the A
+        # operand. The quotient of this division is always rounded down.
+        # Dividing by zero is considered an illegal instruction in Corewar. The
+        # executing warrior's process is removed from the process queue
+        # (terminated).
         raise DivBy0Error if op2.zero?
 
         result = op1 / op2
-        self.class.tracer&.operation("Computing #{op1} / #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{to1} / #{to2} = #{tag1}:#{result}")
       when '%'
+        # The mod instruction divides the number(s) from the address referenced
+        # by the B operand by the number(s) at the address referenced by the A
+        # operand. The remainder from this division is stored at the
+        # destination.
+        # Dividing by zero is considered an illegal instruction in Corewar. The
+        # executing warrior's process is removed from the process queue
+        # (terminated).
         raise DivBy0Error if op2.zero?
 
         result = op1 % op2
-        self.class.tracer&.operation("Computing #{op1} % #{op2} = #{result}")
+        self.class.tracer&.operation("Computing #{to1} % #{to2} = #{tag1}:#{result}")
       else
         raise ArgumentError, "Unknown operator #{operator}"
       end
@@ -252,27 +277,34 @@ module RuMARS
       result
     end
 
+    # The djn instruction works in a similar way to the jmn instruction
+    # detailed above with one addition. Before comparing the destination
+    # instruction against zero, the number(s) at the destination instruction
+    # are decremented. One common use of this opcode is to create the
+    # equivalent of a simple for loop in higher level languages.
+    # Unlike the jmn intruction, the djn instruction will perform the jump if
+    # either operand is zero when using the .f, .x and .i modifiers.
     def djn(bus)
       rpa = bus.a_operand.pointer
       irb = bus.b_operand.instruction
 
-      next_pc = [bus.program_counter + rpa]
+      next_pc = [MemoryCore.fold(bus.program_counter + rpa)]
       irb.pid = pid
 
       case @modifier
       when 'A', 'BA'
         irb.decrement_a_number
-        self.class.tracer&.operation("Jumping if irb A-Number (#{irb.a_number}) != 0")
+        self.class.tracer&.operation("Jumping to #{next_pc.first} if B.a:#{irb.a_number} != 0")
         return next_pc unless irb.a_number.zero?
       when 'B', 'AB'
         irb.decrement_b_number
-        self.class.tracer&.operation("Jumping if irb B-Number (#{irb.b_number}) != 0")
+        self.class.tracer&.operation("Jumping to #{next_pc.first} if B.b:#{irb.b_number} != 0")
         return next_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         irb.decrement_a_number
         irb.decrement_b_number
-        self.class.tracer&.operation("Jumping if not (irb A-Number (#{irb.a_number}) == 0 && " \
-                                     "irb B-Number (#{irb.b_number}) == 0)")
+        self.class.tracer&.operation("Jumping to #{next_pc.first} if not (B.a:#{irb.a_number} == 0 && " \
+                                     "B.b:#{irb.b_number} == 0)")
         return next_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -281,6 +313,12 @@ module RuMARS
       [bus.program_counter + 1]
     end
 
+    # The jmp instruction changes the address of the next instruction which
+    # will be executed by the currently executing process. The most common
+    # usages of this opcode are to create a loop or to skip over a section of
+    # code.
+    # Modifiers have no effect on the jmp instruction, the A operand is always
+    # used as the jump address.
     def jmp(bus)
       rpa = bus.a_operand.pointer
 
@@ -290,6 +328,10 @@ module RuMARS
       [next_pc]
     end
 
+    # The jmz instruction works in the same way as the jmp instruction detailed
+    # above with the exception that the jump is only performed if the number(s)
+    # at the address referenced by the B operand is zero. This allows the jmz
+    # instruction to function like an if statement in a higher level language.
     def jmz(bus)
       rpa = bus.a_operand.pointer
       irb = bus.b_operand.instruction
@@ -299,14 +341,14 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
-        self.class.tracer&.operation("Jumping if irb A-Number (#{irb.a_number}) == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.a:#{irb.a_number} == 0")
         return jump_pc if irb.a_number.zero?
       when 'B', 'AB'
-        self.class.tracer&.operation("Jumping to #{jump_pc} if irb B-Number (#{irb.b_number}) == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.b:#{irb.b_number} == 0")
         return jump_pc if irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump of both of the fields are zero
-        self.class.tracer&.operation("Jumping if ira A-Number (#{irb.a_number}) == 0 && irb B-Number (#{irb.b_number}) == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.a:#{irb.a_number} == 0 && B.b:#{irb.b_number} == 0")
         return jump_pc if irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -315,6 +357,11 @@ module RuMARS
       [bus.program_counter + 1]
     end
 
+    # The jmn instruction works in the same way as the jmz instruction detailed
+    # above with the exception that the jump is performed if the referenced
+    # number(s) are not zero.
+    # Note that when comparing both A and B operands with zero, the jump will
+    # not be taken if either operand is zero.
     def jmn(bus)
       rpa = bus.a_operand.pointer
       irb = bus.b_operand.instruction
@@ -323,16 +370,16 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
-        self.class.tracer&.operation("Jumping if irb A-Number (#{irb.a_number}) != 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.a:#{irb.a_number} != 0")
         return jump_pc unless irb.a_number.zero?
       when 'B', 'AB'
-        self.class.tracer&.operation("Jumping if irb B-Number (#{irb.b_number}) != 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.b:#{irb.b_number} != 0")
         return jump_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump if either of the fields are zero
-        self.class.tracer&.operation("Jumping unless ira A-Number (#{irb.a_number}) == 0 && " \
-                                     "irb B-Number (#{irb.b_number}) == 0")
-        return jump_pc unless irb.a_number.zero? && irb.b_number.zero?
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} unless B.a:#{irb.a_number} == 0 || " \
+                                     "B.b:#{irb.b_number} == 0")
+        return jump_pc unless irb.a_number.zero? || irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
       end
@@ -340,6 +387,8 @@ module RuMARS
       [bus.program_counter + 1]
     end
 
+    # The mov instruction copies data from the address referenced by the A
+    # operand to the address referenced by the B operand.
     def mov(bus)
       ira = bus.a_operand.instruction
       wpb = bus.b_operand.pointer
@@ -347,29 +396,31 @@ module RuMARS
 
       case @modifier
       when 'A'
-        self.class.tracer&.operation('Replacing B operand A-Number with A operand A-Number')
+        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.a:#{ira.a_number}")
         irb.a_number = ira.a_number
         irb.pid = bus.pid
       when 'B'
-        self.class.tracer&.operation('Replacing B operand B-Number with A operand B-Number')
+        self.class.tracer&.operation("Replacing B.b:(#{irb.b_number} with A.b:#{ira.b_number}")
         irb.b_number = ira.b_number
         irb.pid = bus.pid
       when 'AB'
-        self.class.tracer&.operation('Replacing B operand B-Number with A operand A-Number')
+        self.class.tracer&.operation("Replacing B.b:(#{irb.b_number} with A.a:#{ira.a_number}")
         irb.b_number = ira.a_number
         irb.pid = bus.pid
       when 'BA'
-        self.class.tracer&.operation('Replacing B operand A-Number with A operand B-Number')
+        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.b:#{ira.b_number}")
         irb.a_number = ira.b_number
         irb.pid = bus.pid
       when 'F'
-        self.class.tracer&.operation('Repl. B op A-Num with A op A-Num and B op B-Num with A op B-Num')
+        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.a:#{ira.a_number} and " \
+                                     "B.b:(#{irb.b_number} with A.b:#{ira.b_number}")
         irb.a_number = ira.a_number
         irb.b_number = ira.b_number
         ira.pid = bus.pid
         irb.pid = bus.pid
       when 'X'
-        self.class.tracer&.operation('Repl. B op A-Num with A op B-Num and B op B-Num with A op A-Num')
+        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.b:#{ira.b_number} and " \
+                                     "B.b:(#{irb.b_number} with A.a:#{ira.a_number}")
         irb.a_number = ira.b_number
         irb.b_number = ira.a_number
         ira.pid = bus.pid
@@ -385,114 +436,35 @@ module RuMARS
       end
     end
 
+    # The seq or cmp instruction compares the number(s) at the addresses
+    # specified by its source and destination operands and if they are equal,
+    # increments the next address to be executed by the current process by one
+    # - in effect skipping the next instruction. Skip instructions are commonly
+    # used to develop scanners which scan the core looking for other warriors.
     def seq(bus)
-      ira = bus.a_operand.instruction
-      irb = bus.b_operand.instruction
-
-      next2_pc = [bus.program_counter + 2]
-
-      case @modifier
-      when 'A'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) == irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.a_number == irb.a_number
-      when 'B'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.b_number == irb.b_number
-      when 'AB'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.a_number == irb.b_number
-      when 'BA'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.b_number == irb.a_number
-      when 'F'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number}) &&" \
-                                     "ira B-Number (#{ira.b_number}) == irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.a_number == irb.a_number && ira.b_number == irb.b_number
-      when 'X'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) == irb B-Number (#{irb.b_number}) &&" \
-                                     "ira B-Number (#{ira.b_number}) == irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.a_number == irb.b_number && ira.b_number == irb.a_number
-      when 'I'
-        self.class.tracer&.operation("Jumping if ira (#{ira}) == irb (#{irb})")
-        return next2_pc if ira == irb
-      else
-        raise ArgumentError, "Unknown instruction modifier #{@modifier}"
-      end
-
-      [bus.program_counter + 1]
+      jump_conditional(bus, :==, '==')
     end
 
+    # The sne instruction works in the same way as the seq instruction detailed
+    # above with the exception that the next instruction is skipped if the
+    # source and destination instructions are not equal.
     def sne(bus)
-      ira = bus.a_operand.instruction
-      irb = bus.b_operand.instruction
-
-      next2_pc = [bus.program_counter + 2]
-
-      case @modifier
-      when 'A'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) != irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.a_number != irb.a_number
-      when 'B'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.b_number != irb.b_number
-      when 'AB'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.a_number != irb.b_number
-      when 'BA'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.b_number != irb.a_number
-      when 'F'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number}) &&" \
-                                     "ira B-Number (#{ira.b_number}) != irb B-Number (#{irb.b_number})")
-        return next2_pc if ira.a_number != irb.a_number && ira.b_number != irb.b_number
-      when 'X'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) != irb B-Number (#{irb.b_number}) &&" \
-                                     "ira B-Number (#{ira.b_number}) != irb A-Number (#{irb.a_number})")
-        return next2_pc if ira.a_number != irb.b_number && ira.b_number != irb.a_number
-      when 'I'
-        self.class.tracer&.operation("Jumping if ira (#{ira}) != irb (#{irb})")
-        return next2_pc if ira != irb
-      else
-        raise ArgumentError, "Unknown instruction modifier #{@modifier}"
-      end
-
-      [bus.program_counter + 1]
+      jump_conditional(bus, :!=, '!=')
     end
 
+    # The slt instruction compares the number(s) at the addresses specified by
+    # its source and destination operands. If the source number(s) are less
+    # than than the destination number(s), the next address to be executed by
+    # the current process is incremented by one - in effect skipping the next
+    # instruction.
     def slt(bus)
-      ira = bus.a_operand.instruction
-      irb = bus.b_operand.instruction
-
-      jump_pc = [bus.program_counter + 2]
-
-      case @modifier
-      when 'A'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) < irb A-Number (#{irb.a_number})")
-        return jump_pc if ira.a_number < irb.a_number
-      when 'B'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) < irb B-Number (#{irb.b_number})")
-        return jump_pc if ira.b_number < irb.b_number
-      when 'AB'
-        self.class.tracer&.operation("Jumping if ira A-Number (#{ira.a_number}) < irb B-Number (#{irb.b_number})")
-        return jump_pc if ira.a_number < irb.b_number
-      when 'BA'
-        self.class.tracer&.operation("Jumping if ira B-Number (#{ira.b_number}) < irb A-Number (#{irb.a_number})")
-        return jump_pc if ira.b_number < irb.a_number
-      when 'F', 'I'
-        self.class.tracer&.operation("Jumping if ira A-Num (#{ira.a_number}) < irb A-Num (#{irb.a_number}) &&" \
-                                     "ira B-Num (#{ira.b_number}) < irb B-Num (#{irb.b_number})")
-        return jump_pc if ira.a_number < irb.a_number && ira.b_number < irb.b_number
-      when 'X'
-        self.class.tracer&.operation("Jumping if ira A-Num (#{ira.a_number}) < irb B-Num (#{irb.b_number}) &&" \
-                                     "ira B-Num (#{ira.b_number}) < irb A-Num (#{irb.a_number})")
-        return jump_pc if ira.a_number < irb.b_number && ira.b_number < irb.a_number
-      else
-        raise ArgumentError, "Unknown instruction modifier #{@modifier}"
-      end
-
-      [bus.program_counter + 1]
+      jump_conditional(bus, :<, '<')
     end
 
+    # The spl instruction spawns a new process for the current warrior at the
+    # address specified by the A operand.
+    # The newly created process is added to the process queue after the
+    # currently executing process.
     def spl(bus)
       rpa = bus.a_operand.pointer
 
@@ -501,6 +473,50 @@ module RuMARS
       # Fork off another thread. One thread continues at the next instruction, the other at
       # the A-Pointer.
       [bus.program_counter + 1, next_pc]
+    end
+
+    def jump_conditional(bus, op, op_text)
+      ira = bus.a_operand.instruction
+      irb = bus.b_operand.instruction
+
+      next2_pc = [bus.program_counter + 2]
+
+      case @modifier
+      when 'A'
+        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number}")
+        return next2_pc if ira.a_number.send(op, irb.a_number)
+      when 'B'
+        self.class.tracer&.operation("Jumping to #{next2_pc} if A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
+        return next2_pc if ira.b_number.send(op, irb.b_number)
+      when 'AB'
+        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.b:#{irb.b_number}")
+        return next2_pc if ira.a_number.send(op, irb.b_number)
+      when 'BA'
+        self.class.tracer&.operation("Jumping to #{next2_pc} if A.b:#{ira.b_number} #{op_text} B.a:#{irb.a_number}")
+        return next2_pc if ira.b_number.send(op, irb.a_number)
+      when 'F'
+        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
+                                     "A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
+        return next2_pc if ira.a_number.send(op, irb.a_number) && ira.b_number.send(op, irb.b_number)
+      when 'X'
+        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.b_number} #{op_text} B.b:#{irb.b_number} &&" \
+                                     "A.b:#{ira.b_number} #{op_text} B.a:#{irb.a_number}")
+        return next2_pc if ira.a_number.send(irb.b_number) && ira.b_number.send(op, irb.a_number)
+      when 'I'
+        if op_text == '<'
+          # For the < operation, .I is identical to .F
+          self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
+                                       "A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
+          return next2_pc if ira.a_number.send(op, irb.a_number) && ira.b_number.send(op, irb.b_number)
+        else
+          self.class.tracer&.operation("Jumping to #{next2_pc} if A:#{ira} #{op_text} B:#{irb}")
+          return next2_pc if ira.send(op, irb)
+        end
+      else
+        raise ArgumentError, "Unknown instruction modifier #{@modifier}"
+      end
+
+      [bus.program_counter + 1]
     end
   end
 end
