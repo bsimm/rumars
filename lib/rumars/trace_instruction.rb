@@ -47,12 +47,20 @@ module RuMARS
     end
 
     def to_s
-      "IREG:    #{aformat(@address)}: #{iformat(@instruction)} CYCLE: #{format('%4d', @cycle_counter)}  PID: #{@pid}\n" \
-        "A-OPERAND #{@a_operand}\n" \
-        "B-OPERAND #{@b_operand}\n" \
-        "OPERATION #{@operation}\n" \
-        "STORES:  #{aiformat(@stores[0])}           #{aiformat(@stores[1])}\n" \
-        "PCS: (#{@pcs&.length || 0}) [#{pcs_to_s}]"
+      s = "IREG:    #{aformat(@address)}: #{iformat(@instruction)}  " \
+          "CYCLE: #{format('%4d', @cycle_counter)}  " \
+          "PID: #{@pid}\n" \
+          "A-OPERAND                           B-OPERAND\n"
+      a = a_operand.to_s.split("\n")
+      b = b_operand.to_s.split("\n")
+      a.length.times do |i|
+        s += format("  %-34s  %-34s\n", a[i], b[i])
+      end
+      s += "OPERATION #{@operation}\n" \
+           "STORES:  #{aiformat(@stores[0])}           #{aiformat(@stores[1])}\n" \
+           "PCS: (#{@pcs&.length || 0}) [#{pcs_to_s}]"
+
+      s
     end
 
     def pcs_to_s

@@ -293,15 +293,19 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
+        self.class.tracer&.operation("Decr. B.a:#{irb.a_number}")
         irb.decrement_a_number
         self.class.tracer&.operation("Jumping to #{next_pc.first} if B.a:#{irb.a_number} != 0")
         return next_pc unless irb.a_number.zero?
       when 'B', 'AB'
+        self.class.tracer&.operation("Decr. B.b:#{irb.b_number}")
         irb.decrement_b_number
         self.class.tracer&.operation("Jumping to #{next_pc.first} if B.b:#{irb.b_number} != 0")
         return next_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
+        self.class.tracer&.operation("Decr. B.a:#{irb.a_number}")
         irb.decrement_a_number
+        self.class.tracer&.operation("Decr. B.b:#{irb.b_number}")
         irb.decrement_b_number
         self.class.tracer&.operation("Jumping to #{next_pc.first} if not (B.a:#{irb.a_number} == 0 && " \
                                      "B.b:#{irb.b_number} == 0)")
@@ -483,33 +487,33 @@ module RuMARS
 
       case @modifier
       when 'A'
-        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number}")
         return next2_pc if ira.a_number.send(op, irb.a_number)
       when 'B'
-        self.class.tracer&.operation("Jumping to #{next2_pc} if A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
         return next2_pc if ira.b_number.send(op, irb.b_number)
       when 'AB'
-        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.b:#{irb.b_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.b:#{irb.b_number}")
         return next2_pc if ira.a_number.send(op, irb.b_number)
       when 'BA'
-        self.class.tracer&.operation("Jumping to #{next2_pc} if A.b:#{ira.b_number} #{op_text} B.a:#{irb.a_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.b:#{ira.b_number} #{op_text} B.a:#{irb.a_number}")
         return next2_pc if ira.b_number.send(op, irb.a_number)
       when 'F'
-        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
                                      "A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
         return next2_pc if ira.a_number.send(op, irb.a_number) && ira.b_number.send(op, irb.b_number)
       when 'X'
-        self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.b_number} #{op_text} B.b:#{irb.b_number} &&" \
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.b_number} #{op_text} B.b:#{irb.b_number} &&" \
                                      "A.b:#{ira.b_number} #{op_text} B.a:#{irb.a_number}")
         return next2_pc if ira.a_number.send(irb.b_number) && ira.b_number.send(op, irb.a_number)
       when 'I'
         if op_text == '<'
           # For the < operation, .I is identical to .F
-          self.class.tracer&.operation("Jumping to #{next2_pc} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
+          self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
                                        "A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
           return next2_pc if ira.a_number.send(op, irb.a_number) && ira.b_number.send(op, irb.b_number)
         else
-          self.class.tracer&.operation("Jumping to #{next2_pc} if A:#{ira} #{op_text} B:#{irb}")
+          self.class.tracer&.operation("Jumping to #{next2_pc.first} if A:#{ira} #{op_text} B:#{irb}")
           return next2_pc if ira.send(op, irb)
         end
       else
