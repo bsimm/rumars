@@ -48,7 +48,7 @@ module RuMARS
     end
 
     def leaderboard
-      warriors = @mars.warriors.sort! { |w1, w2| w2.wins <=> w1.wins }
+      warriors = @mars.warriors.sort { |w1, w2| w2.wins <=> w1.wins }
       puts 'Leaderboard'
       place = 0
       previous_wins = -1

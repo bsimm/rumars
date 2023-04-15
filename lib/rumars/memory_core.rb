@@ -10,7 +10,7 @@ module RuMARS
   # addressed, the address space wraps around so that the memory appears as a
   # circular space.
   class MemoryCore
-    attr_reader :warriors
+    attr_reader :warriors, :read_trace
     attr_accessor :tracer
 
     @size = 8000
@@ -26,6 +26,7 @@ module RuMARS
       @instructions = []
       @warriors = []
       @tracer = nil
+      @read_trace = []
       MemoryCore.size.times do |address|
         poke(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
       end
@@ -105,8 +106,9 @@ module RuMARS
       @instructions[address] = instruction
     end
 
-    def load_relative(base_address, program_counter, address)
+    def load_relative(base_address, program_counter, address, pid)
       core_address = MemoryCore.fold(base_address + program_counter + address)
+      add_read_trace(core_address, pid)
       instruction = peek(core_address)
       @tracer&.log_load(core_address, instruction.to_s)
       instruction
@@ -152,6 +154,11 @@ module RuMARS
       end
 
       false
+    end
+
+    def add_read_trace(address, pid)
+      @read_trace.shift if @read_trace.length > 20
+      @read_trace.push([address, pid])
     end
   end
 end

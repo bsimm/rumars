@@ -194,7 +194,7 @@ module RuMARS
       end
       Signal.trap('SIGINT', 'DEFAULT')
 
-      warriors = @mars.warriors.sort! { |w1, w2| w2.wins <=> w1.wins }
+      warriors = @mars.warriors.sort { |w1, w2| w2.wins <=> w1.wins }
       log.puts 'Results of the battle   Wins'
       place = 0
       previous_wins = -1

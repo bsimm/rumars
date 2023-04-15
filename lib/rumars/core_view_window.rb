@@ -38,7 +38,14 @@ module RuMARS
           instruction = core.peek(address)
 
           fg_color = TextWM::Terminal::FGCOLORS.keys[8 + instruction.pid]
-          print t.ansi_code(:color, fg_color, program_counters.include?(address) ? :white : :blue)
+          bg_color =
+            if (hit = core.read_trace.find { |trc| trc.first == address })
+              TextWM::Terminal::BGCOLORS.keys[8 + hit[1]]
+            else
+              program_counters.include?(address) ? :white : :blue
+            end
+
+          print t.ansi_code(:color, fg_color, bg_color)
           print instruction_character(instruction)
         end
         puts

@@ -52,7 +52,8 @@ module RuMARS
         if @address_mode != '$' # Not Direct
           # For indirect modes @*<>{} the number points to another instruction
           # who's A- or B-numbers will be used to select the final instruction.
-          direct_instr = memory_core.load_relative(base_address, program_counter, op_bus.pointer)
+          direct_instr = memory_core.load_relative(base_address, program_counter,
+                                                   op_bus.pointer, bus.pid)
           op_bus.pointer +=
             if '<{'.include?(@address_mode) # Pre-decrement
               # Take ownership of the modified instruction
@@ -71,7 +72,8 @@ module RuMARS
       end
 
       # Load the instruction that is addressed by this operand.
-      op_bus.instruction = bus.memory_core.load_relative(base_address, program_counter, op_bus.pointer)
+      op_bus.instruction = bus.memory_core.load_relative(base_address, program_counter,
+                                                         op_bus.pointer, bus.pid)
       op_bus.post_incr_instr = direct_instr if '>}'.include?(@address_mode)
 
       op_bus
