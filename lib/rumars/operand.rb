@@ -91,8 +91,8 @@ module RuMARS
     end
 
     def to_s
-      max_int = MemoryCore.size / 2
-      "#{@address_mode}#{@number >= max_int ? -(MemoryCore.size - @number) : @number}"
+      first_negative = MemoryCore.size / 2
+      "#{@address_mode}#{@number >= first_negative ? -(MemoryCore.size - @number) : @number}"
     end
 
     def deep_copy

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'format'
 require_relative 'operand'
 require_relative 'memory_core'
 
@@ -30,6 +31,8 @@ module RuMARS
         @b_operand = nil
       end
     end
+
+    include Format
 
     attr_accessor :pid, :opcode, :modifier, :a_operand, :b_operand, :address
 
@@ -230,28 +233,22 @@ module RuMARS
     end
 
     def arith_op(tag1, op1, operator, tag2, op2)
-      to1 = "#{tag1}:#{op1}"
-      to2 = "#{tag2}:#{op2}"
-
       case operator
       when '+'
         # The add instruction adds the number(s) from the address referenced by
         # the A operand to the number(s) at the address referenced by the B
         # operand.
         result = MemoryCore.fold(op1 + op2)
-        self.class.tracer&.operation("Computing #{to1} + #{to2} = #{tag1}:#{result}")
       when '-'
         # The sub instruction subtracts the number(s) from the address
         # referenced by the A operand from the number(s) at the address
         # referenced by the B operand.
         result = MemoryCore.fold(op1 - op2)
-        self.class.tracer&.operation("Computing #{to1} - #{to2} = #{tag1}:#{result}")
       when '*'
         # The mul instruction multiplies the number(s) from the address
         # referenced by the A operand by the number(s) at the address
         # referenced by the B operand.
         result = MemoryCore.fold(op1 * op2)
-        self.class.tracer&.operation("Computing #{to1} * #{to2} = #{tag1}:#{result}")
       when '/'
         # The div instruction divides the number(s) from the address referenced
         # by the B operand by the number(s) at the address referenced by the A
@@ -262,7 +259,6 @@ module RuMARS
         raise DivBy0Error if op2.zero?
 
         result = op1 / op2
-        self.class.tracer&.operation("Computing #{to1} / #{to2} = #{tag1}:#{result}")
       when '%'
         # The mod instruction divides the number(s) from the address referenced
         # by the B operand by the number(s) at the address referenced by the A
@@ -274,10 +270,11 @@ module RuMARS
         raise DivBy0Error if op2.zero?
 
         result = op1 % op2
-        self.class.tracer&.operation("Computing #{to1} % #{to2} = #{tag1}:#{result}")
       else
         raise ArgumentError, "Unknown operator #{operator}"
       end
+      self.class.tracer&.operation("Computing #{tag1}:#{nformat(op1)} #{operator} #{tag2}:#{nformat(op2)} = " \
+                                   "#{tag1}:#{nformat(result)}")
 
       result
     end
@@ -297,22 +294,22 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
-        self.class.tracer&.operation("Decr. B.a:#{irb.a_number}")
+        self.class.tracer&.operation("Decr. B.a:#{nformat(irb.a_number)}")
         irb.decrement_a_number(bus.pid)
-        self.class.tracer&.operation("Jumping to #{next_pc.first} if B.a:#{irb.a_number} != 0")
+        self.class.tracer&.operation("Jumping to #{next_pc.first} if B.a:#{nformat(irb.a_number)} != 0")
         return next_pc unless irb.a_number.zero?
       when 'B', 'AB'
-        self.class.tracer&.operation("Decr. B.b:#{irb.b_number}")
+        self.class.tracer&.operation("Decr. B.b:#{nformat(irb.b_number)}")
         irb.decrement_b_number(bus.pid)
-        self.class.tracer&.operation("Jumping to #{next_pc.first} if B.b:#{irb.b_number} != 0")
+        self.class.tracer&.operation("Jumping to #{next_pc.first} if B.b:#{nformat(irb.b_number)} != 0")
         return next_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
-        self.class.tracer&.operation("Decr. B.a:#{irb.a_number}")
+        self.class.tracer&.operation("Decr. B.a:#{nformat(irb.a_number)}")
         irb.decrement_a_number(bus.pid)
-        self.class.tracer&.operation("Decr. B.b:#{irb.b_number}")
+        self.class.tracer&.operation("Decr. B.b:#{nformat(irb.b_number)}")
         irb.decrement_b_number(bus.pid)
-        self.class.tracer&.operation("Jumping to #{next_pc.first} if not (B.a:#{irb.a_number} == 0 && " \
-                                     "B.b:#{irb.b_number} == 0)")
+        self.class.tracer&.operation("Jumping to #{next_pc.first} if not (B.a:#{nformat(irb.a_number)} == 0 && " \
+                                     "B.b:#{nformat(irb.b_number)} == 0)")
         return next_pc unless irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -349,14 +346,18 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
-        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.a:#{irb.a_number} == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} " \
+                                     "if B.a:#{nformat(irb.a_number)} == 0")
         return jump_pc if irb.a_number.zero?
       when 'B', 'AB'
-        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.b:#{irb.b_number} == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} " \
+                                     "if B.b:#{nformat(irb.b_number)} == 0")
         return jump_pc if irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump of both of the fields are zero
-        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.a:#{irb.a_number} == 0 && B.b:#{irb.b_number} == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} " \
+                                     "if B.a:#{nformat(irb.a_number)} == 0 &&" \
+                                     "B.b:#{nformat(irb.b_number)} == 0")
         return jump_pc if irb.a_number.zero? && irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -378,15 +379,18 @@ module RuMARS
 
       case @modifier
       when 'A', 'BA'
-        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.a:#{irb.a_number} != 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} " \
+                                     "if B.a:#{nformat(irb.a_number)} != 0")
         return jump_pc unless irb.a_number.zero?
       when 'B', 'AB'
-        self.class.tracer&.operation("Jumping to #{jump_pc.first} if B.b:#{irb.b_number} != 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} " \
+                                     "if B.b:#{nformat(irb.b_number)} != 0")
         return jump_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         # Jump if either of the fields are zero
-        self.class.tracer&.operation("Jumping to #{jump_pc.first} unless B.a:#{irb.a_number} == 0 || " \
-                                     "B.b:#{irb.b_number} == 0")
+        self.class.tracer&.operation("Jumping to #{jump_pc.first} " \
+                                     "unless B.a:#{nformat(irb.a_number)} == 0 || " \
+                                     "B.b:#{nformat(irb.b_number)} == 0")
         return jump_pc unless irb.a_number.zero? || irb.b_number.zero?
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -404,25 +408,33 @@ module RuMARS
 
       case @modifier
       when 'A'
-        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.a:#{ira.a_number}")
+        self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
+                                     "with A.a:#{nformat(ira.a_number)}")
         irb.set_a_number(ira.a_number, bus.pid)
       when 'B'
-        self.class.tracer&.operation("Replacing B.b:(#{irb.b_number} with A.b:#{ira.b_number}")
+        self.class.tracer&.operation("Replacing B.b:#{nformat(irb.b_number)} " \
+                                     "with A.b:#{nformat(ira.b_number)}")
         irb.set_b_number(ira.b_number, bus.pid)
       when 'AB'
-        self.class.tracer&.operation("Replacing B.b:(#{irb.b_number} with A.a:#{ira.a_number}")
+        self.class.tracer&.operation("Replacing B.b:#{nformat(irb.b_number)} " \
+                                     "with A.a:#{nformat(ira.a_number)}")
         irb.set_b_number(ira.a_number, bus.pid)
       when 'BA'
-        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.b:#{ira.b_number}")
+        self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
+                                     "with A.b:#{nformat(ira.b_number)}")
         irb.set_a_number(ira.b_number, bus.pid)
       when 'F'
-        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.a:#{ira.a_number} and " \
-                                     "B.b:(#{irb.b_number} with A.b:#{ira.b_number}")
+        self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
+                                     "with A.a:#{nformat(ira.a_number)} and " \
+                                     "B.b:#{nformat(irb.b_number)} " \
+                                     "with A.b:#{nformat(ira.b_number)}")
         irb.set_a_number(ira.a_number, bus.pid)
         irb.set_b_number(ira.b_number, bus.pid)
       when 'X'
-        self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.b:#{ira.b_number} and " \
-                                     "B.b:(#{irb.b_number} with A.a:#{ira.a_number}")
+        self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
+                                     "with A.b:#{nformat(ira.b_number)} and " \
+                                     "B.b:#{nformat(irb.b_number)} " \
+                                     "with A.a:#{nformat(ira.a_number)}")
         irb.set_a_number(ira.b_number, bus.pid)
         irb.set_b_number(ira.a_number, bus.pid)
       when 'I'
@@ -482,30 +494,47 @@ module RuMARS
 
       case @modifier
       when 'A'
-        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} " \
+                                     "if A.a:#{nformat(ira.a_number)} " \
+                                     "#{op_text} B.a:#{nformat(irb.a_number)}")
         return next2_pc if ira.a_number.send(op, irb.a_number)
       when 'B'
-        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} " \
+                                     "if A.b:#{nformat(ira.b_number)} " \
+                                     "#{op_text} B.b:#{nformat(irb.b_number)}")
         return next2_pc if ira.b_number.send(op, irb.b_number)
       when 'AB'
-        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.b:#{irb.b_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} " \
+                                     "if A.a:#{nformat(ira.a_number)} " \
+                                     "#{op_text} B.b:#{nformat(irb.b_number)}")
         return next2_pc if ira.a_number.send(op, irb.b_number)
       when 'BA'
-        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.b:#{ira.b_number} #{op_text} B.a:#{irb.a_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} " \
+                                     "if A.b:#{nformat(ira.b_number)} " \
+                                     "#{op_text} B.a:#{nformat(irb.a_number)}")
         return next2_pc if ira.b_number.send(op, irb.a_number)
       when 'F'
-        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
-                                     "A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} " \
+                                     "if A.a:#{nformat(ira.a_number)} " \
+                                     "#{op_text} B.a:#{nformat(irb.a_number)} &&" \
+                                     "A.b:#{nformat(ira.b_number)} " \
+                                     "#{op_text} B.b:#{nformat(irb.b_number)}")
         return next2_pc if ira.a_number.send(op, irb.a_number) && ira.b_number.send(op, irb.b_number)
       when 'X'
-        self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.b_number} #{op_text} B.b:#{irb.b_number} &&" \
-                                     "A.b:#{ira.b_number} #{op_text} B.a:#{irb.a_number}")
+        self.class.tracer&.operation("Jumping to #{next2_pc.first} " \
+                                     "if A.a:#{nformat(ira.b_number)} " \
+                                     "#{op_text} B.b:#{nformat(irb.b_number)} &&" \
+                                     "A.b:#{nformat(ira.b_number)} " \
+                                     "#{op_text} B.a:#{nformat(irb.a_number)}")
         return next2_pc if ira.a_number.send(irb.b_number) && ira.b_number.send(op, irb.a_number)
       when 'I'
         if op_text == '<'
           # For the < operation, .I is identical to .F
-          self.class.tracer&.operation("Jumping to #{next2_pc.first} if A.a:#{ira.a_number} #{op_text} B.a:#{irb.a_number} &&" \
-                                       "A.b:#{ira.b_number} #{op_text} B.b:#{irb.b_number}")
+          self.class.tracer&.operation("Jumping to #{next2_pc.first} " \
+                                       "if A.a:#{nformat(ira.a_number)} " \
+                                       "#{op_text} B.a:#{nformat(irb.a_number)} &&" \
+                                       "A.b:#{nformat(ira.b_number)} " \
+                                       "#{op_text} B.b:#{nformat(irb.b_number)}")
           return next2_pc if ira.a_number.send(op, irb.a_number) && ira.b_number.send(op, irb.b_number)
         else
           self.class.tracer&.operation("Jumping to #{next2_pc.first} if A:#{ira} #{op_text} B:#{irb}")

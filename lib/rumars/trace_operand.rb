@@ -32,7 +32,7 @@ module RuMARS
     end
 
     def to_s
-      "PTR: #{aformat(@pointer)}\n" \
+      "PTR:   #{aformat(@pointer)}\n" \
         "LOAD1: #{aiformat(@loads[0])}\n" \
         "LOAD2: #{aiformat(@loads[1])}\n" \
         "STORE: #{aiformat(@stores[0])}\n" \

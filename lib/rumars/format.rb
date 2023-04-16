@@ -25,5 +25,10 @@ module RuMARS
 
       "#{aformat(address)}: #{iformat(instruction)}"
     end
+
+    def nformat(number)
+      first_negative = MemoryCore.size / 2
+      (number >= first_negative ? -(MemoryCore.size - number) : number).to_s
+    end
   end
 end

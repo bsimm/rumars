@@ -50,7 +50,7 @@ module RuMARS
       s = "IREG:    #{aformat(@address)}: #{iformat(@instruction)}  " \
           "CYCLE: #{format('%4d', @cycle_counter)}  " \
           "PID: #{@pid}\n" \
-          "A-OPERAND                           B-OPERAND\n"
+          "A-OPERAND             A.a, A.b        B-OPERAND          B.a, B.b\n"
       a = a_operand.to_s.split("\n")
       b = b_operand.to_s.split("\n")
       a.length.times do |i|

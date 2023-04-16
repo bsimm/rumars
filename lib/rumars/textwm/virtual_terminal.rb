@@ -47,11 +47,11 @@ module TextWM
       @view_columns = columns
       @view_rows = rows
 
-      if @cursor_row - @view_top_line > @view_rows
-        # The cursor is no longer inside the visible area. Update the @view_top_line
-        # to ensure that the cursor is at least on the last visible line.
-        @view_top_line = @cursor_row - @view_rows + 1
-      end
+      return unless @cursor_row - @view_top_line > @view_rows - 1
+
+      # The cursor is no longer inside the visible area. Update the @view_top_line
+      # to ensure that the cursor is at least on the last visible line.
+      @view_top_line = @cursor_row - @view_rows + 1
     end
 
     def scroll(lines)
