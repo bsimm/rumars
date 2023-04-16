@@ -13,57 +13,73 @@ module RuMARS
       super(textwm, 'Core View Window')
       @mars = mars
       @view_top_line = 0
+      @force_update = true
+
       vertical_scrollbar.enable(true)
     end
 
+    def resize(col, row, width, height)
+      @force_update = true
+
+      super
+    end
+
     def update
+      core = @mars.memory_core
+      if core.io_trace && core.io_trace.empty? && !@force_update
+        # The I/O trace is empty. Nothing has changed.
+        super
+        @force_update = false
+        return
+      end
+
       @virt_term.clear
       @virt_term.bottom_clip = true
       t = @textwm.terminal
 
-      program_counters = @mars.scheduler.program_counters
-      core = @mars.memory_core
-      line_length = @width - 2 - 5
+      ipl = instructions_per_line
+      traces_by_lines = split_io_trace_by_lines
 
       (@height - 2).times do |line|
-        line_address = (@view_top_line + line) * line_length
+        line_address = (@view_top_line + line) * ipl
         break if line_address >= MemoryCore.size
 
         print t.ansi_code(:color, :white, :blue)
         print "#{aformat(line_address)}:"
-        line_length.times do |col|
+        ipl.times do |col|
           address = line_address + col
           break if address >= MemoryCore.size
 
           instruction = core.peek(address)
 
           fg_color = TextWM::Terminal::FGCOLORS.keys[8 + instruction.pid]
+          trace = traces_by_lines[line]&.find { |trc| trc.address == address }
           bg_color =
-            if (hit = core.read_trace.find { |trc| trc.first == address })
-              TextWM::Terminal::BGCOLORS.keys[8 + hit[1]]
+            if trace.nil?
+              :blue
+            elsif trace.operation == :pc
+              :white
             else
-              program_counters.include?(address) ? :white : :blue
+              TextWM::Terminal::BGCOLORS.keys[8 + trace.pid]
             end
 
           print t.ansi_code(:color, fg_color, bg_color)
           print instruction_character(instruction)
         end
+        print t.ansi_code(:color, :white, :blue)
         puts
       end
+      core.io_trace&.clear
 
       super
     end
 
     def update_vertical_scrollbar
-      line_length = @width - 2 - 5
-      line_count = (MemoryCore.size / line_length) + ((MemoryCore.size % line_length).zero? ? 0 : 1)
-      vertical_scrollbar.update(@height - 2, line_count, @height - 2, @view_top_line)
+      vertical_scrollbar.update(@height - 2, lines_of_core_memory, @height - 2, @view_top_line)
     end
 
     def getch(char)
-      line_length = @width - 2 - 5
-      lines = (MemoryCore.size / line_length) + (MemoryCore.size % line_length ? 1 : 0)
-      last_top_line = lines - (@height - 2)
+      last_top_line = lines_of_core_memory - (@height - 2)
       last_top_line = 0 if last_top_line.negative?
 
       case char
@@ -87,6 +103,38 @@ module RuMARS
     end
 
     private
+
+    # Number of instructions we can show on each line. That's the window
+    # width minus the 2 frame lines, 4 digits for the address and the colon.
+    def instructions_per_line
+      @width - 2 - 4 - 1
+    end
+
+    def lines_of_core_memory
+      ipl = instructions_per_line
+      (MemoryCore.size / ipl) + (MemoryCore.size % ipl ? 1 : 0)
+    end
+
+    def split_io_trace_by_lines
+      lines = []
+
+      ipl = instructions_per_line
+      return lines if ipl.zero? || (io_trace = @mars.memory_core.io_trace).nil?
+
+      first_visible_address = @view_top_line * ipl
+      last_visible_address = ((@view_top_line + (@height - 2)) * ipl) - 1
+
+      io_trace.each do |trace|
+        address = trace.address
+        next if address < first_visible_address || address > last_visible_address
+
+        line_no = (address - first_visible_address) / ipl
+        lines[line_no] ||= []
+        lines[line_no] << trace
+      end
+
+      lines
+    end
 
     def instruction_character(instruction)
       case instruction.opcode

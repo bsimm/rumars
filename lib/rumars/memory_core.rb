@@ -10,10 +10,12 @@ module RuMARS
   # addressed, the address space wraps around so that the memory appears as a
   # circular space.
   class MemoryCore
-    attr_reader :warriors, :read_trace
-    attr_accessor :tracer
+    attr_reader :warriors
+    attr_accessor :tracer, :io_trace
 
     @size = 8000
+
+    IoOperation = Struct.new(:address, :pid, :operation, :hit)
 
     # Accessor for size
     class << self
@@ -26,7 +28,7 @@ module RuMARS
       @instructions = []
       @warriors = []
       @tracer = nil
-      @read_trace = []
+      @io_trace = nil
       MemoryCore.size.times do |address|
         poke(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
       end
@@ -83,8 +85,10 @@ module RuMARS
       true
     end
 
-    def peek(address)
+    def peek(address, pid = nil)
       raise ArgumentError, "address #{address} out of range" if address.negative? || address >= MemoryCore.size
+
+      trace_io(address, pid, :pc) if pid
 
       @instructions[address]
     end
@@ -92,30 +96,24 @@ module RuMARS
     def poke(address, instruction)
       raise ArgumentError, "address #{address} out of range" if address.negative? || address >= MemoryCore.size
 
-      raise "Bad instruction owner: #{instruction}" if warriors.length.positive? && instruction.pid.zero?
       instruction.address = address
-      if @instructions[address]
-        old_pid = @instructions[address].pid
-        if old_pid.positive? && old_pid != instruction.pid
-          # One warrior is overwriting an instruction of another warrior. We call
-          # this a hit!
-          @warriors[instruction.pid - 1].hits += 1
-        end
-      end
-
       @instructions[address] = instruction
     end
 
+    # This method must be used for all memory reads by an instruction.
     def load_relative(base_address, program_counter, address, pid)
       core_address = MemoryCore.fold(base_address + program_counter + address)
-      add_read_trace(core_address, pid)
+      trace_io(core_address, pid, :read)
       instruction = peek(core_address)
       @tracer&.log_load(core_address, instruction.to_s)
       instruction
     end
 
-    def store_relative(base_address, program_counter, address, instruction)
+    # This method must be used for all memory writes by an instruction.
+    def store_relative(base_address, program_counter, address, instruction, pid)
       core_address = MemoryCore.fold(base_address + program_counter + address)
+      trace_io(core_address, pid, :write)
+      instruction.pid = pid
       @tracer&.log_store(core_address, instruction.to_s)
       poke(core_address, instruction)
     end
@@ -156,9 +154,24 @@ module RuMARS
       false
     end
 
-    def add_read_trace(address, pid)
-      @read_trace.shift if @read_trace.length > 20
-      @read_trace.push([address, pid])
+    def trace_io(address, pid, operation)
+      return unless @io_trace
+
+      raise ArgumentError, "Unknown PID #{pid}" if @warriors.length.positive? && pid.zero?
+      raise ArgumentError, "Unknown operation #{operation}" unless %i[read write pc].include?(operation)
+
+      hit = false
+      if operation == :write && @instructions[address]
+        old_pid = @instructions[address].pid
+        if old_pid.positive? && old_pid != pid
+          # One warrior is overwriting an instruction of another warrior. We call
+          # this a hit!
+          @warriors[pid - 1].hits += 1
+          hit = true
+        end
+      end
+
+      @io_trace.push(IoOperation.new(address, pid, operation, hit))
     end
   end
 end

@@ -86,17 +86,18 @@ module RuMARS
         address = warrior.next_task
         # Load instruction
         core_address = MemoryCore.fold(address + warrior.base_address)
-        instruction = @memory_core.peek(core_address)
+        instruction = @memory_core.peek(core_address, warrior.pid)
         @tracer&.next_instruction(core_address, instruction.to_s, warrior.pid)
         @tracer&.cycle(@cycle_counter)
 
         # and execute it
         unless (pics = instruction.execute(@memory_core, address, warrior.pid, warrior.base_address))
-          if (instruction_pid = @memory_core.peek(address).pid).positive? && instruction_pid != warrior.pid
+          fatal_instruction_pid = @memory_core.peek(address).pid
+          if fatal_instruction_pid.positive? && fatal_instruction_pid != warrior.pid
             # The current warrior lost a thread due to hitting a bad instruction
             # belonging to another warror. We credit that warrior to have killed
             # the thread of the current warrior.
-            @memory_core.warriors[instruction_pid - 1].kills += 1
+            @memory_core.warriors[fatal_instruction_pid - 1].kills += 1
           end
 
           if warrior.task_queue.empty?

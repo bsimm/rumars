@@ -176,6 +176,7 @@ module RuMARS
         rounds.times do |round|
           @mars.warriors_window.round = round
           restart
+          @mars.memory_core.io_trace = []
           8000.times do |i|
             @mars.scheduler.step
             if ((i + 1) % 10).zero?
@@ -191,8 +192,9 @@ module RuMARS
             log.puts "#{index + 1}. #{format("%-16s  %5d %5d %5d", warrior.name, warrior.score, warrior.kills, warrior.hits)}"
           end
         end
+        Signal.trap('SIGINT', 'DEFAULT')
       end
-      Signal.trap('SIGINT', 'DEFAULT')
+      @mars.memory_core.io_trace = nil
 
       warriors = @mars.warriors.sort { |w1, w2| w2.wins <=> w1.wins }
       log.puts 'Results of the battle   Wins'

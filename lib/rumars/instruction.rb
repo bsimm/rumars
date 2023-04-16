@@ -62,18 +62,21 @@ module RuMARS
       @a_operand&.number
     end
 
-    def a_number=(number)
+    def set_a_number(number, pid)
+      @pid = pid
       @a_operand.number = number
       self.class.tracer&.log_store(@address, to_s)
     end
 
-    def increment_a_number
+    def increment_a_number(pid)
+      @pid = pid
       n = @a_operand.number = MemoryCore.fold(a_number + 1)
       self.class.tracer&.log_store(@address, to_s)
       n
     end
 
-    def decrement_a_number
+    def decrement_a_number(pid)
+      @pid = pid
       n = @a_operand.number = MemoryCore.fold(a_number - 1)
       self.class.tracer&.log_store(@address, to_s)
       n
@@ -83,18 +86,21 @@ module RuMARS
       @b_operand&.number
     end
 
-    def b_number=(number)
+    def set_b_number(number, pid)
+      @pid = pid
       @b_operand.number = number
       self.class.tracer&.log_store(@address, to_s)
     end
 
-    def increment_b_number
+    def increment_b_number(pid)
+      @pid = pid
       n = @b_operand.number = MemoryCore.fold(b_number + 1)
       self.class.tracer&.log_store(@address, to_s)
       n
     end
 
-    def decrement_b_number
+    def decrement_b_number(pid)
+      @pid = pid
       n = @b_operand.number = MemoryCore.fold(b_number - 1)
       self.class.tracer&.log_store(@address, to_s)
       n
@@ -195,33 +201,32 @@ module RuMARS
 
       case @modifier
       when 'A'
-        irb.a_number = arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number)
+        irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number), bus.pid)
       when 'B'
-        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number), bus.pid)
       when 'AB'
-        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number), bus.pid)
       when 'BA'
-        irb.a_number = arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number)
+        irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number), bus.pid)
       when 'F', 'I'
         begin
-          irb.a_number = arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number)
+          irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number), bus.pid)
         rescue DivBy0Error => e
         end
         # The b operation must be computed even if the a operation had a division by 0
-        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number), bus.pid)
         raise e if e
       when 'X'
         begin
-          irb.a_number = arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number)
+          irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number), bus.pid)
         rescue DivBy0Error => e
         end
         # The b operation must be computed even if the a operation had a division by 0
-        irb.b_number = arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number), bus.pid)
         raise e if e
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
       end
-      irb.pid = bus.pid
     end
 
     def arith_op(tag1, op1, operator, tag2, op2)
@@ -289,24 +294,23 @@ module RuMARS
       irb = bus.b_operand.instruction
 
       next_pc = [MemoryCore.fold(bus.program_counter + rpa)]
-      irb.pid = pid
 
       case @modifier
       when 'A', 'BA'
         self.class.tracer&.operation("Decr. B.a:#{irb.a_number}")
-        irb.decrement_a_number
+        irb.decrement_a_number(bus.pid)
         self.class.tracer&.operation("Jumping to #{next_pc.first} if B.a:#{irb.a_number} != 0")
         return next_pc unless irb.a_number.zero?
       when 'B', 'AB'
         self.class.tracer&.operation("Decr. B.b:#{irb.b_number}")
-        irb.decrement_b_number
+        irb.decrement_b_number(bus.pid)
         self.class.tracer&.operation("Jumping to #{next_pc.first} if B.b:#{irb.b_number} != 0")
         return next_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         self.class.tracer&.operation("Decr. B.a:#{irb.a_number}")
-        irb.decrement_a_number
+        irb.decrement_a_number(bus.pid)
         self.class.tracer&.operation("Decr. B.b:#{irb.b_number}")
-        irb.decrement_b_number
+        irb.decrement_b_number(bus.pid)
         self.class.tracer&.operation("Jumping to #{next_pc.first} if not (B.a:#{irb.a_number} == 0 && " \
                                      "B.b:#{irb.b_number} == 0)")
         return next_pc unless irb.a_number.zero? && irb.b_number.zero?
@@ -401,40 +405,31 @@ module RuMARS
       case @modifier
       when 'A'
         self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.a:#{ira.a_number}")
-        irb.a_number = ira.a_number
-        irb.pid = bus.pid
+        irb.set_a_number(ira.a_number, bus.pid)
       when 'B'
         self.class.tracer&.operation("Replacing B.b:(#{irb.b_number} with A.b:#{ira.b_number}")
-        irb.b_number = ira.b_number
-        irb.pid = bus.pid
+        irb.set_b_number(ira.b_number, bus.pid)
       when 'AB'
         self.class.tracer&.operation("Replacing B.b:(#{irb.b_number} with A.a:#{ira.a_number}")
-        irb.b_number = ira.a_number
-        irb.pid = bus.pid
+        irb.set_b_number(ira.a_number, bus.pid)
       when 'BA'
         self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.b:#{ira.b_number}")
-        irb.a_number = ira.b_number
-        irb.pid = bus.pid
+        irb.set_a_number(ira.b_number, bus.pid)
       when 'F'
         self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.a:#{ira.a_number} and " \
                                      "B.b:(#{irb.b_number} with A.b:#{ira.b_number}")
-        irb.a_number = ira.a_number
-        irb.b_number = ira.b_number
-        ira.pid = bus.pid
-        irb.pid = bus.pid
+        irb.set_a_number(ira.a_number, bus.pid)
+        irb.set_b_number(ira.b_number, bus.pid)
       when 'X'
         self.class.tracer&.operation("Replacing B.a:(#{irb.a_number} with A.b:#{ira.b_number} and " \
                                      "B.b:(#{irb.b_number} with A.a:#{ira.a_number}")
-        irb.a_number = ira.b_number
-        irb.b_number = ira.a_number
-        ira.pid = bus.pid
-        irb.pid = bus.pid
+        irb.set_a_number(ira.b_number, bus.pid)
+        irb.set_b_number(ira.a_number, bus.pid)
       when 'I'
         # Copies entire instruction
         self.class.tracer&.operation('Copy A instruction into B instruction')
         # Ensure ownership of modified instruction
-        ira.pid = bus.pid
-        bus.memory_core.store_relative(bus.base_address, bus.program_counter, wpb, ira)
+        bus.memory_core.store_relative(bus.base_address, bus.program_counter, wpb, ira, bus.pid)
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
       end
