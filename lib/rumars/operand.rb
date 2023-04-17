@@ -91,8 +91,12 @@ module RuMARS
     end
 
     def to_s
-      first_negative = MemoryCore.size / 2
-      "#{@address_mode}#{@number >= first_negative ? -(MemoryCore.size - @number) : @number}"
+      if @number.respond_to?(:>=)
+        first_negative = MemoryCore.size / 2
+        "#{@address_mode}#{@number >= first_negative ? -(MemoryCore.size - @number) : @number}"
+      else
+        "#{@address_mode}#{@number}"
+      end
     end
 
     def deep_copy

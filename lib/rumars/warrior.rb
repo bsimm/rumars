@@ -39,10 +39,11 @@ module RuMARS
         end
       rescue Parser::ParseError => e
         logger.puts e
+        @program = nil
         return false
       end
 
-      @name = @program.name unless @program.name.empty?
+      @name = @program.name unless @program&.name.empty?
 
       true
     end
@@ -56,10 +57,10 @@ module RuMARS
         logger.puts "Cannot open file #{file_name}"
         return false
       end
+      @timestamp = Time.now
 
       if parse(redcode, settings, logger)
         logger.puts "Redcode file #{file_name} loaded"
-        @timestamp = Time.now
         return true
       end
 

@@ -38,10 +38,14 @@ module RuMARS
       warriors = @mars.warriors.sort { |w1, w2| w2.score <=> w1.score }
       warriors.each do |warrior|
         puts "Name:  #{colored_name(warrior)}"
-        puts "Score: #{warrior.score}"
-        puts "Kills: #{warrior.kills}"
-        puts "Hits:  #{warrior.hits}"
-        puts "Lifes: #{warrior.task_queue.length}"
+        if warrior.program
+          puts "Score: #{warrior.score}"
+          puts "Kills: #{warrior.kills}"
+          puts "Hits:  #{warrior.hits}"
+          puts "Lifes: #{warrior.task_queue.length}"
+        else
+          puts "Disqualified"
+        end
         puts
       end
       puts
@@ -53,6 +57,8 @@ module RuMARS
       place = 0
       previous_wins = -1
       warriors.each do |warrior|
+        next unless warrior.program
+
         place += 1 if previous_wins != warrior.wins
         puts "#{place}. #{colored_name(warrior)} #{warrior.wins}"
       end
@@ -60,9 +66,13 @@ module RuMARS
 
     def colored_name(warrior)
       t = @textwm.terminal
-      fg_color = TextWM::Terminal::FGCOLORS.keys[8 + warrior.pid]
-      "#{t.ansi_code(:color, fg_color, @background_color)}" \
-        "#{warrior.name}#{t.ansi_code(:color, @text_color, @background_color)}"
+      if warrior.program
+        fg_color = TextWM::Terminal::FGCOLORS.keys[8 + warrior.pid]
+        "#{t.ansi_code(:color, fg_color, @background_color)}" \
+          "#{warrior.name}#{t.ansi_code(:color, @text_color, @background_color)}"
+      else
+        warrior.name
+      end
     end
   end
 end

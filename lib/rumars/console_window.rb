@@ -81,6 +81,8 @@ module RuMARS
     end
 
     def step
+      return unless @current_warrior
+
       # Ensure the core window centers the current program counter
       @mars.core_window.show_address = nil
       # Ensure the register window shows the latest trace
@@ -92,6 +94,8 @@ module RuMARS
     end
 
     def run(args = [])
+      return unless @current_warrior
+
       puts 'Type CTRL-C to interrupt the running warrior(s)'
       @textwm.update_windows
 
@@ -115,6 +119,13 @@ module RuMARS
     def restart
       @mars.restart
       @mars.reload_warriors_into_core
+      # In case all the registered warriors failed to parse, we don't have current
+      # warrior yet. We pick the last one that parsed properly.
+      return if @current_warrior
+
+      @mars.warriors.each do |warrior|
+        @current_warrior = warrior if warrior.program
+      end
     end
 
     private

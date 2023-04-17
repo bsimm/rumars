@@ -49,8 +49,8 @@ module RuMARS
 
       @instructions.each_with_index do |instruction, address|
         instruction.evaluate_expressions(@labels, address)
-      rescue Expression::ExpressionError
-        raise Expression::ExpressionError, instruction.to_s
+      rescue Expression::ExpressionError => e
+        raise Expression::ExpressionError, "#{instruction}: #{e.message}"
       end
     end
 

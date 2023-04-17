@@ -76,9 +76,14 @@ module RuMARS
       end
 
       def to_s
-        "#{@parser.file_name ? "#{@parser.file_name}: " : ''}#{@parser.line_no}: #{@message}'\n  " \
-          "#{@parser.scanner.string}\n  " \
-          "#{' ' * @parser.scanner.pos}^"
+        s = +"#{@parser.file_name ? "#{@parser.file_name}: " : ''}#{@parser.line_no}: #{@message}\n  "
+
+        unless @parser.scanner.eos?
+          s += "#{@parser.scanner.string}\n  " \
+               "#{' ' * @parser.scanner.pos}^"
+        end
+
+        s
       end
     end
 
@@ -151,8 +156,8 @@ module RuMARS
       begin
         @program.evaluate_expressions
       rescue Expression::ExpressionError => e
-        raise ParseError.new(self, "Error in expression: #{e.message}")
         @program = nil
+        raise ParseError.new(self, "Error in expression: #{e.message}")
       end
 
       @program

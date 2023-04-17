@@ -16,6 +16,10 @@ module RuMARS
       @force_update = true
 
       vertical_scrollbar.enable(true)
+
+      @text_color = :white
+      @background_color = :blue
+      @pc_color = :white
     end
 
     def resize(col, row, width, height)
@@ -44,7 +48,7 @@ module RuMARS
         line_address = (@view_top_line + line) * ipl
         break if line_address >= MemoryCore.size
 
-        print t.ansi_code(:color, :white, :blue)
+        print t.ansi_code(:color, @text_color, @background_color)
         print "#{aformat(line_address)}:"
         ipl.times do |col|
           address = line_address + col
@@ -56,9 +60,9 @@ module RuMARS
           trace = traces_by_lines[line]&.find { |trc| trc.address == address }
           bg_color =
             if trace.nil?
-              :blue
+              @background_color
             elsif trace.operation == :pc
-              :white
+              @pc_color
             else
               TextWM::Terminal::BGCOLORS.keys[8 + trace.pid]
             end
@@ -66,7 +70,7 @@ module RuMARS
           print t.ansi_code(:color, fg_color, bg_color)
           print instruction_character(instruction)
         end
-        print t.ansi_code(:color, :white, :blue)
+        print t.ansi_code(:color, @text_color, @background_color)
         puts
       end
       core.io_trace&.clear
