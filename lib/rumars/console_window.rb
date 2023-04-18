@@ -88,6 +88,7 @@ module RuMARS
       # Ensure the register window shows the latest trace
       prev_debug_level = @mars.debug_level
       @mars.debug_level = 3
+      @mars.memory_core.io_trace = []
       @mars.scheduler.step
       @mars.register_window.trace_index = @mars.tracer.trace_count(@current_warrior.pid) - 1
       @mars.debug_level = prev_debug_level
@@ -99,6 +100,7 @@ module RuMARS
       puts 'Type CTRL-C to interrupt the running warrior(s)'
       @textwm.update_windows
 
+      @mars.memory_core.io_trace = nil
       @mars.core_window.show_address = nil
       @mars.scheduler.run(args.first&.to_i || -1)
     end

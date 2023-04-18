@@ -120,12 +120,14 @@ module RuMARS
     def preprocess_and_parse(source_code)
       @program = Program.new
 
-      @line_no = 1
+      @line_no = 0
       @ignore_lines = true
       buffer_lines = []
       source_code.lines.each do |line|
-        # Remove trailing line break
-        line.chop!
+        # Replace TABs with a space
+        line.gsub!(/\t/, ' ')
+        # Remove all non-visible and non ASCII characters
+        line.gsub!(/[^ -~]/, '')
 
         # Redcode files require a line that reads
         # ;redcode-94
@@ -165,7 +167,11 @@ module RuMARS
 
     def parse(text, entry_token)
       @scanner = StringScanner.new(text)
-      send(entry_token)
+      ast = send(entry_token)
+
+      raise ParseError.new(self, 'Unknown token found') unless @scanner.eos?
+
+      ast
     end
 
     private
