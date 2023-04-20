@@ -322,14 +322,16 @@ module RuMARS
     end
 
     def instruction_line
-      (label = optional_label) && space && (poi = pseudo_or_instruction(label)) && space && optional_comment
+      label = ''
+      space && ((poi = pseudo_or_instruction(label)) ||
+                ((label = optional_label) && space && (poi = pseudo_or_instruction(label)))) && space && optional_comment
 
       # Lines that only have a label are labels for the line with the next instruction.
       @program.add_label(label) if poi == 'label_line' && !label.empty?
     end
 
     def pseudo_or_instruction(label)
-      equ_instruction(label) || for_instruction(label) || end_instruction || org_instruction || instruction(label) || 'label_line'
+      equ_instruction(label) || for_instruction(label) || end_instruction || org_instruction || instruction(label)
     end
 
     def equ_instruction(label)
