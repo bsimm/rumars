@@ -36,9 +36,18 @@ module RuMARS
       # The default settings for certain configuration options. They can be
       # changed via commandline arguments.
       @settings = Settings.new(core_size: 8000, max_cycles: 80_000,
-                               max_processes: 8000, max_length: 100, min_distance: 100, rounds: 1)
+                               max_processes: 8000, max_length: 100,
+                               min_distance: 100,
+                               read_limit: 4000, write_limit: 1000,
+                               rounds: 1)
       # Process the commandline arguments to adjust configuration options.
       @files = CommandlineArgumentsParser.new(@settings).parse(argv)
+
+      if @settings[:read_limit] < @settings[:write_limit]
+        warn "Read limit (#{@settings[:read_limit]}) must not be smaller " \
+             "than write limit (#{@settings[:write_limit]})"
+        return
+      end
 
       @warriors = []
 
@@ -120,6 +129,20 @@ module RuMARS
 
     def run(max_cycles = @settings.max_cycles)
       @scheduler.run(max_cycles)
+    end
+
+    def trace(max_cycles = @settings.max_cycles)
+      @tracer = Tracer.new
+      old_debug_level = @debug_level
+      self.debug_level = 1
+
+      run(max_cycles)
+      trace = @tracer.to_s
+
+      self.debug_level = old_debug_level
+      @tracer = nil
+
+      trace
     end
 
     def cycles

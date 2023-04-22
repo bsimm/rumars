@@ -65,5 +65,9 @@ module RuMARS
       @traces_by_pid[pid] ||= [] if pid
       pid ? @traces_by_pid[pid][index] : @traces[index]
     end
+
+    def to_s
+      @traces.each(&:to_s).join("\n#{'-' * 70}\n")
+    end
   end
 end

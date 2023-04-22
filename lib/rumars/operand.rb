@@ -58,9 +58,9 @@ module RuMARS
             if '<{'.include?(@address_mode) # Pre-decrement
               # Take ownership of the modified instruction
               if @address_mode == '<'
-                direct_instr.decrement_b_number(bus.pid)
+                direct_instr.decrement_b_number(bus)
               else
-                direct_instr.decrement_a_number(bus.pid)
+                direct_instr.decrement_a_number(bus)
               end
             else
               # Add A- or B-number to the pointer for '*', '}', '@' or '>' addressing modes.
@@ -84,9 +84,9 @@ module RuMARS
       # Execute the post-increment on the A- or B-Number of the instruction
       # pointed to by pii
       if @address_mode == '>'
-        instruction.increment_b_number(bus.pid)
+        instruction.increment_b_number(bus)
       else # '}'
-        instruction.increment_a_number(bus.pid)
+        instruction.increment_a_number(bus)
       end
     end
 

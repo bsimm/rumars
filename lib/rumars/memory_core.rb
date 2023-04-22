@@ -10,7 +10,7 @@ module RuMARS
   # addressed, the address space wraps around so that the memory appears as a
   # circular space.
   class MemoryCore
-    attr_reader :warriors
+    attr_reader :warriors, :settings
     attr_accessor :tracer, :io_trace
 
     @size = 8000
@@ -30,7 +30,7 @@ module RuMARS
       @tracer = nil
       @io_trace = nil
       MemoryCore.size.times do |address|
-        poke(address, Instruction.new(0, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0)))
+        poke(address, default_instruction(0, address))
       end
     end
 
@@ -102,6 +102,8 @@ module RuMARS
 
     # This method must be used for all memory reads by an instruction.
     def load_relative(base_address, program_counter, address, pid)
+      return default_instruction(pid, address) unless check_limit(:read_limit, 0, address)
+
       core_address = MemoryCore.fold(base_address + program_counter + address)
       trace_io(core_address, pid, :read)
       instruction = peek(core_address)
@@ -116,6 +118,13 @@ module RuMARS
       instruction.pid = pid
       @tracer&.log_store(core_address, instruction.to_s)
       poke(core_address, instruction)
+    end
+
+    def check_limit(limit, src_address, dst_address)
+      distance1 = MemoryCore.fold(src_address - dst_address)
+      distance2 = MemoryCore.fold(dst_address - src_address)
+
+      [distance1, distance2].min <= @settings[limit]
     end
 
     def find_base_address(size)
@@ -172,6 +181,10 @@ module RuMARS
       end
 
       @io_trace.push(IoOperation.new(address, pid, operation, hit))
+    end
+
+    def default_instruction(pid, address)
+      Instruction.new(pid, 'DAT', 'F', Operand.new('', 0), Operand.new('', 0), address)
     end
   end
 end

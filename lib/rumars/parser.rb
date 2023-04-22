@@ -104,15 +104,20 @@ module RuMARS
       }
       # Set other constants based on the MARS settings
       settings.each_pair do |name, value|
+        val_str = value.to_s
         case name
         when :max_processes
-          @constants['MAXPROCESSES'] = value.to_s
+          @constants['MAXPROCESSES'] = val_str
         when :max_cycles
-          @constants['MAXCYCLES'] = value.to_s
+          @constants['MAXCYCLES'] = val_str
         when :max_length
-          @constants['MAXLENGTH'] = value.to_s
+          @constants['MAXLENGTH'] = val_str
         when :min_distance
-          @constants['MINDISTANCE'] = value.to_s
+          @constants['MINDISTANCE'] = val_str
+        when :read_limit
+          @constants['READLIMIT'] = val_str
+        when :write_limit
+          @constants['WRITELIMIT'] = val_str
         end
       end
     end
@@ -277,7 +282,7 @@ module RuMARS
     end
 
     def opcode
-      scan(/(ADD|CMP|DAT|DIV|DJN|JMN|JMP|JMZ|MOD|MOV|MUL|NOP|SEQ|SNE|SLT|SPL|SUB)/i)
+      scan(/(ADD|CMP|DAT|DIV|DJN|JMN|JMP|JMZ|MOD|MOV|MUL|NOP|SEQ|SNE|SLT|SPL|SUB)(?=[. ])/i)
     end
 
     def mode

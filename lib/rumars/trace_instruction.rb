@@ -39,7 +39,7 @@ module RuMARS
     end
 
     def program_counters(pcs)
-      @pcs = pcs
+      @pcs = pcs.clone
     end
 
     def log_store(address, instruction)

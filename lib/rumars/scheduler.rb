@@ -84,9 +84,14 @@ module RuMARS
 
         # Pull next PC from task queue
         address = warrior.next_task
-        # Load instruction
         core_address = MemoryCore.fold(address + warrior.base_address)
-        instruction = @memory_core.peek(core_address, warrior.pid)
+        instruction = if @memory_core.check_limit(:read_limit, 0, address)
+                        # Load instruction
+                        @memory_core.peek(core_address, warrior.pid)
+                      else
+                        MemoryCore.default_instruction
+                      end
+
         @tracer&.next_instruction(core_address, instruction.to_s, warrior.pid)
         @tracer&.cycle(@cycle_counter)
 
@@ -117,9 +122,6 @@ module RuMARS
         log("New thread started at #{pics[1]}") if pics.length > 1
 
         @tracer&.program_counters(warrior.task_queue)
-        if (next_pc = warrior.task_queue.last) != MemoryCore.fold(address + 1)
-          log("Jumped to #{aformat(next_pc)}: #{@memory_core.peek(next_pc)}")
-        end
       end
       @cycle_counter += 1
     end

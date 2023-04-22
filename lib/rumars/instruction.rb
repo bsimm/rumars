@@ -8,8 +8,6 @@ module RuMARS
   OPCODES = %w[DAT MOV ADD SUB MUL DIV MOD JMP JMZ JMN DJN CMP SLT SPL].freeze
   MODIFIERS = %w[A B AB BA F X I].freeze
 
-  ExecutionContext = Struct.new(:modifier, :program_counter, :memory_core, :pid, :base_address)
-
   # A REDCODE instruction that is stored in the core memory.
   # https://corewar-docs.readthedocs.io/en/latest/redcode/
   class Instruction
@@ -48,13 +46,13 @@ module RuMARS
     # @param modifier [String] Determines how the operands are used
     # @param a_operand [Operand] 'A' value of the instruction
     # @param b_operand [Operand] 'B' value of the instruction
-    def initialize(pid, opcode, modifier, a_operand, b_operand)
+    def initialize(pid, opcode, modifier, a_operand, b_operand, address = nil)
       raise ArgumentError unless OPCODES.include?(opcode) || MODIFIERS.include?(modifier)
 
       # ID of the Warrior that either loaded or modified this instruction.
       @pid = pid
       # Address in the memory that the instruction is loaded to.
-      @address = nil
+      @address = address
       @opcode = opcode
       @modifier = modifier
       @a_operand = a_operand
@@ -65,48 +63,48 @@ module RuMARS
       @a_operand&.number
     end
 
-    def set_a_number(number, pid)
-      @pid = pid
+    def set_a_number(number, bus)
+      return 0 unless bus.memory_core.check_limit(:write_limit, bus.program_counter, @address)
+
+      @pid = bus.pid
       @a_operand.number = number
       self.class.tracer&.log_store(@address, to_s)
+
+      number
     end
 
-    def increment_a_number(pid)
-      @pid = pid
+    def increment_a_number(bus)
       n = @a_operand.number = MemoryCore.fold(a_number + 1)
-      self.class.tracer&.log_store(@address, to_s)
-      n
+      set_a_number(n, bus)
     end
 
-    def decrement_a_number(pid)
-      @pid = pid
+    def decrement_a_number(bus)
       n = @a_operand.number = MemoryCore.fold(a_number - 1)
-      self.class.tracer&.log_store(@address, to_s)
-      n
+      set_a_number(n, bus)
     end
 
     def b_number
       @b_operand&.number
     end
 
-    def set_b_number(number, pid)
-      @pid = pid
+    def set_b_number(number, bus)
+      return 0 unless bus.memory_core.check_limit(:write_limit, bus.program_counter, @address)
+
+      @pid = bus.pid
       @b_operand.number = number
       self.class.tracer&.log_store(@address, to_s)
+
+      number
     end
 
-    def increment_b_number(pid)
-      @pid = pid
+    def increment_b_number(bus)
       n = @b_operand.number = MemoryCore.fold(b_number + 1)
-      self.class.tracer&.log_store(@address, to_s)
-      n
+      set_b_number(n, bus)
     end
 
-    def decrement_b_number(pid)
-      @pid = pid
+    def decrement_b_number(bus)
       n = @b_operand.number = MemoryCore.fold(b_number - 1)
-      self.class.tracer&.log_store(@address, to_s)
-      n
+      set_b_number(n, bus)
     end
 
     def evaluate_expressions(symbol_table, instruction_address)
@@ -179,12 +177,22 @@ module RuMARS
         raise "Unknown opcode #{@opcode} at address #{program_counter}"
       end
 
+      next_pc&.delete_if do |pc|
+        if memory_core.check_limit(:read_limit, 0, pc)
+          false
+        else
+          self.class.tracer&.operation('Jump beyond read limit')
+          true
+        end
+      end
+      next_pc = nil if next_pc&.empty?
+
       next_pc
     end
 
     # Create an identical deep copy.
     def deep_copy
-      Instruction.new(@pid, @opcode.clone, @modifier.clone, @a_operand.deep_copy, @b_operand&.deep_copy)
+      Instruction.new(@pid, @opcode.clone, @modifier.clone, @a_operand.deep_copy, @b_operand&.deep_copy, @address)
     end
 
     def to_s
@@ -202,30 +210,35 @@ module RuMARS
       ira = bus.a_operand.instruction
       irb = bus.b_operand.instruction
 
+      unless bus.memory_core.check_limit(:write_limit, bus.program_counter, irb.address)
+        self.class.tracer&.operation('Write limit exceeded')
+        return
+      end
+
       case @modifier
       when 'A'
-        irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number), bus.pid)
+        irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number), bus)
       when 'B'
-        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number), bus.pid)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number), bus)
       when 'AB'
-        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number), bus.pid)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number), bus)
       when 'BA'
-        irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number), bus.pid)
+        irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number), bus)
       when 'F', 'I'
         begin
-          irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number), bus.pid)
+          irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.a', ira.a_number), bus)
         rescue DivBy0Error => e
         end
         # The b operation must be computed even if the a operation had a division by 0
-        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number), bus.pid)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.b', ira.b_number), bus)
         raise e if e
       when 'X'
         begin
-          irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number), bus.pid)
+          irb.set_a_number(arith_op('B.a', irb.a_number, op, 'A.b', ira.b_number), bus)
         rescue DivBy0Error => e
         end
         # The b operation must be computed even if the a operation had a division by 0
-        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number), bus.pid)
+        irb.set_b_number(arith_op('B.b', irb.b_number, op, 'A.a', ira.a_number), bus)
         raise e if e
       else
         raise ArgumentError, "Unknown instruction modifier #{@modifier}"
@@ -295,19 +308,19 @@ module RuMARS
       case @modifier
       when 'A', 'BA'
         self.class.tracer&.operation("Decr. B.a:#{nformat(irb.a_number)}")
-        irb.decrement_a_number(bus.pid)
+        irb.decrement_a_number(bus)
         self.class.tracer&.operation("Jumping to #{next_pc.first} if B.a:#{nformat(irb.a_number)} != 0")
         return next_pc unless irb.a_number.zero?
       when 'B', 'AB'
         self.class.tracer&.operation("Decr. B.b:#{nformat(irb.b_number)}")
-        irb.decrement_b_number(bus.pid)
+        irb.decrement_b_number(bus)
         self.class.tracer&.operation("Jumping to #{next_pc.first} if B.b:#{nformat(irb.b_number)} != 0")
         return next_pc unless irb.b_number.zero?
       when 'F', 'X', 'I'
         self.class.tracer&.operation("Decr. B.a:#{nformat(irb.a_number)}")
-        irb.decrement_a_number(bus.pid)
+        irb.decrement_a_number(bus)
         self.class.tracer&.operation("Decr. B.b:#{nformat(irb.b_number)}")
-        irb.decrement_b_number(bus.pid)
+        irb.decrement_b_number(bus)
         self.class.tracer&.operation("Jumping to #{next_pc.first} if not (B.a:#{nformat(irb.a_number)} == 0 && " \
                                      "B.b:#{nformat(irb.b_number)} == 0)")
         return next_pc unless irb.a_number.zero? && irb.b_number.zero?
@@ -406,37 +419,39 @@ module RuMARS
       wpb = bus.b_operand.pointer
       irb = bus.b_operand.instruction
 
+      return unless bus.memory_core.check_limit(:write_limit, bus.program_counter, irb.address)
+
       case @modifier
       when 'A'
         self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
                                      "with A.a:#{nformat(ira.a_number)}")
-        irb.set_a_number(ira.a_number, bus.pid)
+        irb.set_a_number(ira.a_number, bus)
       when 'B'
         self.class.tracer&.operation("Replacing B.b:#{nformat(irb.b_number)} " \
                                      "with A.b:#{nformat(ira.b_number)}")
-        irb.set_b_number(ira.b_number, bus.pid)
+        irb.set_b_number(ira.b_number, bus)
       when 'AB'
         self.class.tracer&.operation("Replacing B.b:#{nformat(irb.b_number)} " \
                                      "with A.a:#{nformat(ira.a_number)}")
-        irb.set_b_number(ira.a_number, bus.pid)
+        irb.set_b_number(ira.a_number, bus)
       when 'BA'
         self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
                                      "with A.b:#{nformat(ira.b_number)}")
-        irb.set_a_number(ira.b_number, bus.pid)
+        irb.set_a_number(ira.b_number, bus)
       when 'F'
         self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
                                      "with A.a:#{nformat(ira.a_number)} and " \
                                      "B.b:#{nformat(irb.b_number)} " \
                                      "with A.b:#{nformat(ira.b_number)}")
-        irb.set_a_number(ira.a_number, bus.pid)
-        irb.set_b_number(ira.b_number, bus.pid)
+        irb.set_a_number(ira.a_number, bus)
+        irb.set_b_number(ira.b_number, bus)
       when 'X'
         self.class.tracer&.operation("Replacing B.a:#{nformat(irb.a_number)} " \
                                      "with A.b:#{nformat(ira.b_number)} and " \
                                      "B.b:#{nformat(irb.b_number)} " \
                                      "with A.a:#{nformat(ira.a_number)}")
-        irb.set_a_number(ira.b_number, bus.pid)
-        irb.set_b_number(ira.a_number, bus.pid)
+        irb.set_a_number(ira.b_number, bus)
+        irb.set_b_number(ira.a_number, bus)
       when 'I'
         # Copies entire instruction
         self.class.tracer&.operation('Copy A instruction into B instruction')

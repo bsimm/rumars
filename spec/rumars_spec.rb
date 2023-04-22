@@ -258,4 +258,64 @@ RSpec.describe RuMARS::MARS do
     @mars.run(100)
     expect(@mars.cycles).to eql(100)
   end
+
+  it 'should support read limits' do
+    prg = <<~"PRG"
+      ;redcode-94
+      add1     add.ab data, #0
+               jmn.b  error, -1
+      add2     add.ab data+1, #-1
+               jmn.b  error, -1
+      success  jmp    0
+               dat.f  1, 1
+      data     dat.f  1, 1  ; This instruction is past the read limit for add1 but not add2
+      error    dat.f  1, 1
+    PRG
+
+    @mars.settings.read_limit = 5
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(10)
+    expect(@mars.cycles).to eql(10)
+  end
+
+  it 'should support read limits for jumps' do
+    prg = <<~"PRG"
+      ;redcode-94
+              jmp too_far
+              jmp 0
+              dat.f 0, 0
+              dat.f 0, 0
+              dat.f 0, 0
+              dat.f 0, 0
+      too_far jmp 0
+              dat.f 0, 0
+    PRG
+
+    @mars.settings.read_limit = 5
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(5)
+    expect(@mars.cycles).to eql(1)
+  end
+
+  it 'should support write limits' do
+    prg = <<~"PRG"
+      ;redcode-94
+      add1     add.ab #1, data
+               jmn.b  error, data
+      add2     add.ab #1, data
+               jmz.b  error, -1
+      success  jmp    0
+               dat.f  1, 1
+      data     dat.f  0, 0  ; This instruction is past the read limit for add1 but not add2
+      error    dat.f  1, 1
+    PRG
+
+    @mars.settings.write_limit = 5
+    @warrior.parse(prg, @mars.settings, $stdout)
+    @mars.add_warrior(@warrior)
+    @mars.run(10)
+    expect(@mars.cycles).to eql(10)
+  end
 end

@@ -52,6 +52,14 @@ module RuMARS
           @settings[:rounds] = int
         end
 
+        p.on('--readlimit N', '-d', Integer, "Max. distance for reads [#{@settings[:read_limit]}]") do |int|
+          @settings[:read_limit] = int
+        end
+
+        p.on('--writelimit N', '-d', Integer, "Max. distance for writes [#{@settings[:write_limit]}]") do |int|
+          @settings[:write_limit] = int
+        end
+
         p.on('-h', '--help', 'Print this help') do
           puts p
           exit
