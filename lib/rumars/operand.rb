@@ -1,3 +1,10 @@
+#
+# Copyright (c) Chris Schlaeger <cs@taskjuggler.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of version 2 of the GNU General Public License as
+# published by the Free Software Foundation.
+#
 # frozen_string_literal: true
 
 require_relative 'expression'
@@ -56,7 +63,6 @@ module RuMARS
                                                    op_bus.pointer, bus.pid)
           op_bus.pointer +=
             if '<{'.include?(@address_mode) # Pre-decrement
-              # Take ownership of the modified instruction
               if @address_mode == '<'
                 direct_instr.decrement_b_number(bus)
               else

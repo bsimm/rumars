@@ -1,3 +1,10 @@
+#
+# Copyright (c) Chris Schlaeger <cs@taskjuggler.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of version 2 of the GNU General Public License as
+# published by the Free Software Foundation.
+#
 # Extend the standard Ruby String class to include a method to calculate the
 # length of the visible characters ignoring ANSI escape sequences.
 class String
