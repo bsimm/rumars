@@ -217,7 +217,7 @@ module RuMARS
     end
 
     def scan(regexp)
-      @logger.puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
+      # @logger.puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
       @scanner.scan(regexp)
     end
 
