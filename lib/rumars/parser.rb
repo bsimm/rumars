@@ -217,7 +217,7 @@ module RuMARS
     end
 
     def scan(regexp)
-      # @logger.puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
+      @logger.puts "Scanning '#{@scanner.string[@scanner.pos..]}' with #{regexp}"
       @scanner.scan(regexp)
     end
 
@@ -336,10 +336,11 @@ module RuMARS
     def instruction_line
       label = ''
       space && ((poi = pseudo_or_instruction(label)) ||
-                ((label = optional_label) && space && (poi = pseudo_or_instruction(label)))) && space && optional_comment
+                ((label = optional_label) && space && (poi = pseudo_or_instruction(label))) ||
+                comment) && space && optional_comment
 
       # Lines that only have a label are labels for the line with the next instruction.
-      @program.add_label(label) if poi == 'label_line' && !label.empty?
+      @program.add_label(label) if !label.empty? && !poi
     end
 
     def pseudo_or_instruction(label)
@@ -356,6 +357,8 @@ module RuMARS
       raise ParseError.new(self, "Constant #{label} has already been defined") if @constants.include?(label)
 
       @constants[label] = definition
+
+      true
     end
 
     def for_instruction(label)
@@ -378,6 +381,8 @@ module RuMARS
       raise ParseError.new(self, 'Expression expected') unless exp
 
       @program.start_address = exp
+
+      true
     end
 
     def end_instruction
@@ -416,6 +421,8 @@ module RuMARS
 
       @program.add_label(label) unless label.empty?
       @program.append_instruction(instruction)
+
+      true
     end
 
     def optional_label

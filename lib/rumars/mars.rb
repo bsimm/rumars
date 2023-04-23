@@ -45,7 +45,7 @@ module RuMARS
       @settings = Settings.new(core_size: 8000, max_cycles: 80_000,
                                max_processes: 8000, max_length: 100,
                                min_distance: 100,
-                               read_limit: 4000, write_limit: 1000,
+                               read_limit: 4000, write_limit: 4000,
                                rounds: 1)
       # Process the commandline arguments to adjust configuration options.
       @files = CommandlineArgumentsParser.new(@settings).parse(argv)

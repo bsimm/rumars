@@ -61,6 +61,7 @@ module TextWM
       buttons_length = buttons.map { |b| "#{b.key}-#{b.label}" }.join.length
       space_count = buttons.length - 1
       total_spaces_length = @width - buttons_length
+      total_spaces_length = 0 if total_spaces_length.negative?
 
       if space_count.zero?
         # We just have a single button that gets centered on the line.
