@@ -19,6 +19,14 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
 ## Usage
 
+### Redcode IDE
+
+![Redcode IDE](/screenshots/debug.png?raw=true "Redcode IDE")
+
+### Battle View
+
+![Battle View](/screenshots/battle.png?raw=true "Battle View")
+
 Not yet ready for use. This software is still under development.
 
 ## Development
