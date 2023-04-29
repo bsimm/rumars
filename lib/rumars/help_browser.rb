@@ -17,7 +17,7 @@ module RuMARS
         when 'Console Window'
           'commands'
         when 'Core Window'
-          'instructions'
+          'opcodes'
         when 'Register Window'
           'address_modes'
         else
