@@ -1,7 +1,9 @@
-# [Opcodes](redcode/opcodes)
+# Table Of Contents
 
-# [Operands](redcode/operands)
+1. [Opcodes](redcode/opcodes)
 
-# [Modifiers](redcode/modifiers)
+1. [Operands](redcode/operands)
 
-# [Address Modes](redcode/address_modes)
+1. [Modifiers](redcode/modifiers)
+
+1. [Address Modes](redcode/address_modes)
