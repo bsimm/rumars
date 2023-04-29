@@ -74,3 +74,21 @@ instructions. The `.i` modifier is only applicable to the
 [mov](opocodes#mov-move), [seq](opcodes#skip-if-equal) and
 [sne](opcodes#skip-if-not-equal) opcodes.  Other opcodes tend to default to the
 behaviour of the [.f](modifiers#f) modifier.
+
+## Default Modifiers
+
+Which modifier is inserted as a default is dependant upon the instruction's opcode and `A` and `B` addressing modes as follows:
+
+|Opcode|A-mode|B-mode|Default Modifier|
+|---|---|---|---|
+|`dat`|any|any|`.f`|
+|`mov` `cmp`|#|any|`.ab`|
+||$@<>{}|#|`.b`|
+||$@<>{}|$@<>{}|`.i`|
+|`add` `sub` `mul` `div` `mod`|#|any|`.ab`|
+||$@<>{}|#|`.b`|
+||$@<>{}|$@<>{}|`.f`|
+|`slt`|#|any|`.ab`|
+||$@<>{}|any|`.b`|
+|`jmp` `jmz` `jmn` `djn` `spl` `nop`|any|any|`.b`|
+

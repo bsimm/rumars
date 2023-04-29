@@ -269,7 +269,7 @@ source and destination [operands](operands) and if they are equal, increments
 the next address to be executed by the current process by one - in effect
 skipping the next instruction. Skip instructions are commonly used to develop
 scanners which scan the [core](core) looking for other
-[warriors](../corewar/warriors).
+warriors.
 
 The instruction's [modifier](modifiers) determines what at the two addresses is
 compared for equality. Importantly, using a modifier of [.i](modifiers#i) will
@@ -293,7 +293,7 @@ The default modifier for the 'sne' opcode is [.i](modifiers#i).
 The `slt` instruction compares the number(s) at the addresses specified by its
 source and destination [operands](operands). If the source number(s) are less
 than than the destination number(s), the next address to be executed by the
-current [process](../corewar/processes) is incremented by one - in effect
+current process is incremented by one - in effect
 skipping the next instruction.
 
 The instruction's [modifier](modifiers) controls which operands are compared at

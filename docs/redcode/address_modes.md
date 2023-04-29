@@ -163,8 +163,7 @@ dat   $0, $0
 
 Note, perhaps counter-intuitively, the final resulting core looks exactly the
 same as the starting core. The change made by the post-increment was
-overwritten by the move operation. See [execution](../corewar/execution) for
-more details about the execution order within Corewar.
+overwritten by the move operation.
 
 ## B Pre-decrement Indirect
 
