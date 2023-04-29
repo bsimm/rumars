@@ -27,7 +27,6 @@ RSpec.describe RuMARS::Parser do
   it 'should parse a program with constants' do
     parser = RuMARS::Parser.new(@settings)
     prog = <<~PRG
-      ;redcode-94
       one    equ #1
              mov 0, one
              end
@@ -39,12 +38,11 @@ RSpec.describe RuMARS::Parser do
   it 'should properly handle operator precedence' do
     parser = RuMARS::Parser.new(@settings)
     prog = <<~PRG
-      ;redcode-94
-             mov 1+2+3+4, 4-3-2-1
-             mov 1+2+3*4*5+6+7, 7-6-5*4*3-2-1
-             mov 1-2+3-4+5-6, 1-2+3-(4-5)-6
-             mov 20-8/4-5, 3+4*5-6
-             end
+      mov 1+2+3+4, 4-3-2-1
+      mov 1+2+3*4*5+6+7, 7-6-5*4*3-2-1
+      mov 1-2+3-4+5-6, 1-2+3-(4-5)-6
+      mov 20-8/4-5, 3+4*5-6
+      end
     PRG
     program = parser.preprocess_and_parse(prog)
     expect(program.instructions.size).to eql(4)

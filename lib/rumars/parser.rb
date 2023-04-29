@@ -74,6 +74,10 @@ require_relative 'for_loop'
 module RuMARS
   # REDCODE parser
   class Parser
+    # If a line that matches this regexp is present, the parsing will only
+    # start after this line.
+    REDCODE_MARKER_REGEXP = /^;redcode(-94|-x|)\s*.*$/
+
     # This class handles all parsing errors.
     class ParseError < RuntimeError
       def initialize(parser, message)
@@ -133,7 +137,8 @@ module RuMARS
       @program = Program.new
 
       @line_no = 0
-      @ignore_lines = true
+      # Check if we have a redcode start marker.
+      @ignore_lines = !(REDCODE_MARKER_REGEXP =~ source_code).nil?
       buffer_lines = []
       source_code.lines.each do |line|
         # Replace TABs with a space
@@ -141,10 +146,8 @@ module RuMARS
         # Remove all non-visible and non ASCII characters
         line.gsub!(/[^ -~]/, '')
 
-        # Redcode files require a line that reads
-        # ;redcode-94
-        # All lines before this line will be ignored.
-        @ignore_lines = false if /^;redcode(-94|)\s*$/ =~ line
+        # If we detect the redcode start marker, we start parsing.
+        @ignore_lines = false if REDCODE_MARKER_REGEXP =~ line
 
         @line_no += 1
 
@@ -409,8 +412,21 @@ module RuMARS
 
       raise ParseError.new(self, "Instruction #{opc} must have an A-operand") unless e1
 
-      # The default B-operand is an immediate value of 0
-      e2 ||= Operand.new('#', Expression.new(0, nil, nil))
+      if e2.nil?
+        if opc == 'DAT'
+          # If the DAT instruction has only one operand, it will be the B operand.
+          # The A operand will be 0.
+          e2 = e1
+          e1 = Operand.new('#', Expression.new(0, nil, nil))
+        elsif %w[JMP SPL NOP].include?(opc)
+          # These instructions may have only 1 operand. In that case the B
+          # operand defaults to 0.
+          e2 = Operand.new('#', Expression.new(0, nil, nil))
+        else
+          # All other instructions must always have 2 operands.
+          raise ParseError.new(self, "The #{opc} instruction must have 2 operands")
+        end
+      end
       mod = default_modifier(opc, e1, e2) if mod == ''
 
       Instruction.new(0, opc, mod, e1, e2)
