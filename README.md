@@ -23,7 +23,7 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
 ## Usage
 
-See the [RuMARS Documentation](docs/index)
+See the [RuMARS Documentation](docs/index.md)
 
 ## Battle View
 
