@@ -53,7 +53,7 @@ module RuMARS
           # all warriors have died.
           break if alive_warriors.zero? || (max_cycles.positive? && cycles >= max_cycles)
 
-          if @breakpoints.intersect?(program_counters)
+          unless (@breakpoints & program_counters).empty?
             log("Hit breakpoint at #{@breakpoints & program_counters} after #{cycles} cycles")
             break
           end
