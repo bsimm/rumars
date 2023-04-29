@@ -7,7 +7,7 @@ and write limits and new features introduced by pMARS.
 
 ![Redcode IDE](/screenshots/debug.png?raw=true "Redcode IDE")
 
-This documentation is based on material from [CoreWars.io](https://github.com/corewar/corewar.io)
+This documentation is based on material from [corewar.io](https://github.com/corewar/corewar.io)
 
 ## Installation
 
@@ -91,11 +91,11 @@ Save the whole core or the instructions within the specified address range to th
 
 Execute one instruction for all loaded warriors. The execution trace of the instructions will be shown in the register window.
 
-##[Opcodes](docs/redcode/opcodes.md)
+[Opcodes](docs/redcode/opcodes.md)
 
-##[Modifiers](docs/redcode/modifiers.md)
+[Modifiers](docs/redcode/modifiers.md)
 
-##[Address Modes](docs/redcode/address_modes.md)
+[Address Modes](docs/redcode/address_modes.md)
 
 ## Battle View
 
