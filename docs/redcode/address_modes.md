@@ -1,26 +1,4 @@
-#Operands
-
-Each redcode instruction contains two operands. An operand is composed of an
-[addressing mode](addressing_modes) and a number. The first operand is known as
-the `A` operand and the second as the `B` operand.
-
-```redcode
-mov.i $1, #2
-```
-In the above example, the A operand is `$1` and the B operand is `#2`.
-
-The A addressing mode is `$` (direct) and the A number is `1`.
-The B addressing mode is `#` (immediate) and the B number is `2`.
-
-If no addressing mode is specified for an operand, the [Parser](parser) inserts
-a default addressing mode of `$` (direct).
-
-Some [opcodes](opcodes) only require a single operand in order to be
-successfully parsed. When this is the case, the parser inserts `$0` as the
-second operand. In these situations the opcode determines whether the `A` or
-`B` operand is inserted. 
-
-##Addressing Modes
+# Addressing Modes
 
 Each [operand](operands) in a Corewar instruction has an addressing mode. The
 addressing mode controls how the `Source` and `Destination` instructions are
@@ -43,7 +21,7 @@ The following addressing modes can be used in Corewar
 * [<](#b-pre-decrement-indirect) - B Pre-decrement Indirect
 * [>](#b-post-increment-indirect) - B Post-increment Indirect
 
-##Immediate
+## Immediate
 
 Operands with the immediate (`#`) addressing mode are always evaluated as an
 address of 0. This allows data to be stored in the operand without affecting
@@ -57,7 +35,7 @@ will continue to function perfectly even if the `A` number is modified.
 mov.i #123, $1
 ```
 
-##Direct
+## Direct
 
 The direct (`$`) addressing mode provides a relative address from the executing
 instruction to another instruction in the core.
@@ -74,7 +52,7 @@ respectively.
 
 The direct addressing mode is the default addressing mode.
 
-##A Indirect
+## A Indirect
 
 The A Indirect (`*`) addressing mode uses the executing instruction's operand
 as a pointer to an intermediate instruction. This second instruction's `A`
@@ -105,7 +83,7 @@ instruction is found by moving 2 addresses forward from the second instruction.
 This means that the fourth instruction (`jmp 0`) will be used as the `source`
 for this move instruction. 
 
-##B Indirect
+## B Indirect
 
 The B Indirect (`@`) addressing mode works in the same way as the [A
 Indirect](#a-indirect) (`*`) addressing mode described above except that it
@@ -128,7 +106,7 @@ the loop, it adds `4` (the step size) to the `dat` instructions `B` number.
 After this it executes `mov 2, @2` to copy the `dat` bomb to the address
 pointed to by the `dat` bomb's `B` number.
 
-##A Pre-decrement Indirect
+## A Pre-decrement Indirect
 
 The A Pre-decrement Indirect (`{`) addressing mode works in the same way as the
 [A Indirect](`*`) addressing mode detailed above with the addition that it
@@ -151,7 +129,7 @@ After decrementing, the `A` number of the `dat` instruction will be `-1` and
 therefore refer to the `mov` instruction, which will be used as the `source`
 instruction.
 
-##A Post-increment Indirect
+## A Post-increment Indirect
 
 The A Post-increment Indirect (`}`) addressing mode works in the same way as
 the [A Indirect](`*`) addressing mode detailed above with the addition that it
@@ -188,18 +166,16 @@ same as the starting core. The change made by the post-increment was
 overwritten by the move operation. See [execution](../corewar/execution) for
 more details about the execution order within Corewar.
 
-##B Pre-decrement Indirect
+## B Pre-decrement Indirect
 
 The B Pre-decrement Indirect (`<`) addressing mode works in the same way as the
 [A Pre-decrement Indirect](#a-pre-decrement-indirect) addressing mode detailed
 above except it decrements and uses the intermediate instruction's `B` number
 as a pointer, rather than its `A` number.
 
-##B Post-increment Indirect
+## B Post-increment Indirect
 
 The B Post-increment Indirect (`>`) addressing mode works in the same way as
 the [A Post-increment Indirect](#a-post-increment-indirect) addressing mode
 detailed above except it increments and uses the intermediate instruction's `B`
 number as a pointer, rather than its `A` number.
-
-

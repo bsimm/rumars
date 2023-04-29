@@ -27,7 +27,7 @@ The following `opcodes` can be used in Corewar
 * [spl](#spl-split)
 * [nop](#nop-no-operation)
 
-##Dat - Data
+## Dat - Data
 
 If one of a warrior's processes executes a `dat` instruction it is removed from
 the process queue i.e. terminated. This is the main way that warriors are
@@ -57,7 +57,7 @@ parsed. If this is the case, the A operand is defaulted to 0.
 
 For example `dat 7` will be parsed as `DAT.F $0, $7`
 
-##Mov - Move
+## Mov - Move
 
 The `mov` instruction copies data from the address referenced by the A
 [operand](operands) to the address referenced by the B operand.
@@ -66,7 +66,7 @@ Which data is copied is determined by the instruction's [modifier](modifiers).
 
 The default modifier for the `mov` opcode is [.i](modifiers#i).
 
-##Add - Add
+## Add - Add
 
 The `add` instruction adds the number(s) from the address referenced by the A
 [operand](operands) to the number(s) at the address referenced by the B
@@ -82,7 +82,7 @@ modifier.
 
 The default modifier for the `add` opcode is [.ab](modifiers#ab).
 
-##Sub - Subtract
+## Sub - Subtract
 
 The `sub` instruction subtracts the number(s) from the address referenced by
 the A [operand](operands) from the number(s) at the address referenced by the B
@@ -98,7 +98,7 @@ The [.i](modifiers#i) modifier has the same effect as the [.f](modifiers#f) modi
 
 The default modifier for the `sub` opcode is [.ab](modifiers#ab).
 
-##Mul - Multiply
+## Mul - Multiply
 
 The `mul` instruction multiplies the number(s) from the address referenced by
 the A [operand](operands) by the number(s) at the address referenced by the B
@@ -115,7 +115,7 @@ modifier.
 
 The default modifier for the `mul` opcode is [.ab](modifiers#ab).
 
-##Div - Divide
+## Div - Divide
 
 The `div` instruction divides the number(s) from the address referenced by the
 B [operand](operands) by the number(s) at the address referenced by the A
@@ -137,7 +137,7 @@ warrior's process is removed from the process queue (terminated).
 Note that termination of the warrior's process happens after the
 [operand](operands) [addressing modes](addressing_modes) are evaluated.
 
-##Mod - Modulo
+## Mod - Modulo
 
 The `mod` instruction divides the number(s) from the address referenced by the
 B [operand](operands) by the number(s) at the address referenced by the A
@@ -159,7 +159,7 @@ warrior's process is removed from the process queue (terminated).
 Note that termination of the warrior's process happens after the
 [operand](operands) [addressing modes](addressing_modes) are evaluated.
 
-##Jmp - Jump
+## Jmp - Jump
 
 The `jmp` instruction changes the address of the next instruction which will be
 executed by the currently executing process. The most common usages of this
@@ -179,7 +179,7 @@ parsed. If this is the case, the B operand is defaulted to 0.
 
 For example `jmp 5` will be parsed as `JMP.B $5, $0`.
 
-##Jmz - Jump if Zero
+## Jmz - Jump if Zero
 
 The `jmz` instruction works in the same way as the [jmp](opcodes#jmp-jump)
 instruction detailed above with the exception that the jump is only performed
@@ -216,7 +216,7 @@ dat 0, 0 ; <- will jump if compared with jmz.f
 
 The default modifier for the `jmz` opcode is [.b](modifiers#b).
 
-##Jmn - Jump if not Zero
+## Jmn - Jump if not Zero
 
 The `jmn` instruction works in the same way as the
 [jmz](opcodes#jmz-jump-if-zero) instruction detailed above with the exception
@@ -234,7 +234,7 @@ dat 0, 0 ; <- won't jump if compared with jmn.f
 
 The default modifier for the `jmn` opcode is [.b](modifiers#b).
 
-##Djn - Decrement and Jump if not Zero
+## Djn - Decrement and Jump if not Zero
 
 The `djn` instruction works in a similar way to the
 [jmn](opcodes#jmn-jump-if-not-zero) instruction detailed above with one
@@ -259,7 +259,7 @@ and before the comparison against zero is made.
 
 The default modifier for the `djn` opcode is [.b](modifiers#b).
 
-##Seq - Skip if Equal
+## Seq - Skip if Equal
 
 The `cmp` opcode is an alias for `seq` used to support legacy corewar
 standards. `cmp` and `seq` work in exactly the same way within Corewar.
@@ -279,7 +279,7 @@ mode](addressing_modes), the next instruction will not be skipped.
 
 The default modifier for the 'seq' opcode is [.i](modifiers#i).
 
-##Sne - Skip if not Equal
+## Sne - Skip if not Equal
 
 The `sne` instruction works in the same way as the
 [seq](opcodes#seq-skip-if-equal) instruction detailed above with the exception
@@ -288,7 +288,7 @@ are **not** equal.
 
 The default modifier for the 'sne' opcode is [.i](modifiers#i).
 
-##Slt - Skip if Less Than
+## Slt - Skip if Less Than
 
 The `slt` instruction compares the number(s) at the addresses specified by its
 source and destination [operands](operands). If the source number(s) are less
@@ -318,7 +318,7 @@ corresponding destination number.
 
 The default modifier for the 'slt' opcode is [.b](modifiers#b).
 
-##Spl - Split
+## Spl - Split
 
 The `spl` instruction spawns a new process for the current warrior at the
 address specified by the A [operand](operands).
@@ -347,7 +347,7 @@ parsed. If this is the case, the B operand is defaulted to 0.
 
 For example `spl 3` will be parsed as `SPL.B $3, $0`.
 
-##Nop - No Operation
+## Nop - No Operation
 
 The `nop` instruction does not perform any operation. The instruction takes a
 single cycle to execute as normal, and [addressing modes](addressing_modes) are

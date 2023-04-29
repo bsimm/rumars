@@ -1,4 +1,4 @@
-#Modifiers
+# Modifiers
 
 Modifiers are appended to the end of an [opcode](opcodes) to modify the
 opcode's behaviour.
@@ -35,39 +35,39 @@ source and destination instruction are used as follows:
 For most [opcodes](opcodes) the `.i` modifier has the same effect as the `.f`
 modifier.
 
-##A
+## A
 
 The A [operand](operands) of the source instruction and the A operand of the
 destination instruction are used by the specified [opcode](opcodes).
 
-##B
+## B
 
 The B [operand](operands) of the source instruction and the B operand of the
 destination instruction are used by the specified [opcode](opcodes).
 
-##AB
+## AB
 
 The A [operand](operands) of the source instruction and the B operand of the
 destination instruction are used by the specified [opcode](opcodes).
 
-##BA
+## BA
 
 The B [operand](operands) of the source instruction and the A operand of the
 destination instruction are used by the specified [opcode](opcodes).
 
-##F
+## F
 
 Both the A and B [operand](operands)s of the source instruction and the A and B
 operands of the destination instruction are used by the specified
 [opcode](opcodes) respectively.
 
-##X
+## X
 
 Both the A and B [operand](operands)s of the source instruction and the B and A
 operands of the destination instruction are used by the specified
 [opcode](opcodes) respectively.
 
-##I
+## I
 
 The specified [opcode](opcodes) is applied to the entire source and destination
 instructions. The `.i` modifier is only applicable to the
