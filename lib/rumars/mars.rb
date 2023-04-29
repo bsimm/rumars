@@ -43,11 +43,16 @@ module RuMARS
     def initialize(argv = [])
       # The default settings for certain configuration options. They can be
       # changed via commandline arguments.
-      @settings = Settings.new(core_size: 8000, max_cycles: 80_000,
-                               max_processes: 8000, max_length: 100,
-                               min_distance: 100,
-                               read_limit: 4000, write_limit: 4000,
-                               rounds: 1)
+      @settings = Settings.new(
+        8000, # core_size: 8000
+        8000, # max_cycles: 80_000
+        8000, # max_processes: 8000
+        100, # max_length: 100
+        100, # min_distance: 100
+        4000, # read_limit: 4000
+        4000, # write_limit: 4000
+        1, #rounds: 1
+      )
       # Process the commandline arguments to adjust configuration options.
       @files = CommandlineArgumentsParser.new(@settings).parse(argv)
 
