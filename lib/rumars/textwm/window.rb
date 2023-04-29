@@ -13,6 +13,7 @@ require_relative 'scrollbar'
 
 module TextWM
   class Window
+    attr_reader :name
     attr_accessor :active
 
     # @param textwm [TextWM]
@@ -116,6 +117,9 @@ module TextWM
 
     def print(str)
       @virt_term.print(str)
+    end
+
+    def flush
     end
 
     private

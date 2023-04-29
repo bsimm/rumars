@@ -13,7 +13,7 @@ require_relative 'splits'
 
 module TextWM
   class WindowManager
-    attr_reader :terminal
+    attr_reader :terminal, :active_window
 
     def initialize(out, inp)
       @terminal = Terminal.new(out, inp)

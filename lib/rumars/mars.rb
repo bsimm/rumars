@@ -13,6 +13,7 @@ require_relative 'memory_core'
 require_relative 'scheduler'
 require_relative 'warrior'
 require_relative 'tracer'
+require_relative 'help_browser'
 require_relative 'textwm/textwm'
 require_relative 'textwm/panel'
 require_relative 'core_window'
@@ -171,7 +172,7 @@ module RuMARS
       # The core view can be invisble, small and big. The other panes will be
       # adjusted accordingly.
       current_size = @vsplits2.ratios[1]
-      if current_size == 0
+      if current_size.zero?
         # The core view is currently invisible. Make it small.
         @vsplits1.ratios = [nil, 10, 1]
         @vsplits2.ratios = [nil, 10]
@@ -249,7 +250,7 @@ module RuMARS
 
     def setup_panel
       panel = TextWM::Panel.new(@textwm)
-      panel.add_button('F1', 'Help') {}
+      panel.add_button('F1', 'Help') { HelpBrowser.new(@textwm).help_window }
       panel.add_button('F2', 'PrevWin') { @textwm.focus_window(@textwm.prev_window) }
       panel.add_button('F3', 'NextWin') { @textwm.focus_window(@textwm.next_window) }
       panel.add_button('F4', 'CoreView') { toggle_core_view }

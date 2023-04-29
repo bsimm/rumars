@@ -19,6 +19,74 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
 ## Usage
 
+### Commands
+
+The following commands can be entered into the console window to operate RuMARS.
+
+* battle, ba
+
+Run the loaded warrior(s) in battle mode.
+
+* break, br <address>
+
+Toggle the breakpoint at the given address. You can use symbols and expressions to specify the address.
+
+* create, cr
+
+Create a new warrior.
+
+* debug <level>
+
+Set the verbosity of debug information. Levels 0 to 1 are supported.
+
+* exit
+
+Exit the RuMARS.
+
+* focus, fo <pid>
+
+Switch the focus to the loaded warrior with the given program ID.
+
+* goto, go <address>
+
+Set the current program counter to the given address. You can use symbols and expressions to specify the address.
+
+* list, li <address>
+
+Show the instruction at the given address in the core window. You can use symbols and expressions to specify the address.
+
+* load, lo <file name>
+
+Load the redcode file with the given file name.
+
+* pcs
+
+Show the program counters of the current program.
+
+* peek, pe <address>
+
+Print the instruction at the given address. You can use symbols and expressions to specify the address.
+
+* poke, po <address> <instruction>
+
+Write the given instruction to the specified address.
+
+* restart, re
+
+Restart all loaded warriors.
+
+* run, ru [<cycles>]
+
+Run the loaded warriors until the given cycle count is reached or only one is left. No execution trace will be recorded.
+
+* save, sa <filename.red> [start address] [end address]
+
+Save the whole core or the instructions within the specified address range to the given file.
+
+* step, st
+
+Execute one instruction for all loaded warriors. The execution trace of the instructions will be shown in the register window.
+
 ### Redcode IDE
 
 ![Redcode IDE](/screenshots/debug.png?raw=true "Redcode IDE")
