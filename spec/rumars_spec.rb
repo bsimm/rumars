@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require_relative '../lib/rumars/mars'
-require_relative '../lib/rumars/mocked_keyboard'
-require_relative '../lib/rumars/vt100'
 
 RSpec.describe RuMARS::MARS do
   before(:each) do
