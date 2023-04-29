@@ -4,8 +4,10 @@ require 'rbconfig'
 require 'open3'
 
 module RuMARS
+  # Context sensitive help browser. It uses the system web browser to display
+  # online help pages.
   class HelpBrowser
-    BASE_URL = 'https://github.com/scrapper/rumars#'
+    BASE_URL = 'https://scrapper.github.io/rumars/'
 
     def initialize(textwm)
       @textwm = textwm
@@ -17,11 +19,11 @@ module RuMARS
         when 'Console Window'
           'commands'
         when 'Core Window'
-          'opcodes'
+          'redcode/opcodes'
         when 'Register Window'
-          'address_modes'
+          'redcode/address_modes'
         else
-          'readme'
+          'index'
         end
 
       launch_browser(BASE_URL + context)

@@ -1,5 +1,7 @@
 # Table Of Contents
 
+1. [Commands](commands)
+
 1. [Opcodes](redcode/opcodes)
 
 1. [Operands](redcode/operands)
