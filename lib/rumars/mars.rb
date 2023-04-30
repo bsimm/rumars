@@ -52,7 +52,9 @@ module RuMARS
         4000, # read_limit: 4000
         4000, # write_limit: 4000
         1, # rounds: 1
-        'ui' # start user interface
+        'ui', # start user interface
+        nil, # coredump_file
+        nil # trace_file
       )
       # Process the commandline arguments to adjust configuration options.
       @files = CommandlineArgumentsParser.new(@settings).parse(argv)
@@ -120,12 +122,33 @@ module RuMARS
           restart
           reload_warriors_into_core
           @memory_core.io_trace = []
+
+          if (trace_file = @settings[:trace_file])
+            @tracer = Tracer.new(0)
+            old_debug_level = @debug_level
+            self.debug_level = 1
+          end
+
           @settings[:max_cycles].times do |i|
             @scheduler.step
             if ((i + 1) % 10).zero?
               @warriors_window&.cycle = i
               @textwm&.update_windows
             end
+          end
+
+          if trace_file
+            trace_file += round.zero? ? '' : "-#{round}"
+            @tracer.save(trace_file)
+
+            self.debug_level = old_debug_level
+            @tracer = nil
+          end
+
+          # Save the coredump file if the user has specified one.
+          if (coredump_file = @settings[:coredump_file])
+            coredump_file += round.zero? ? '' : "-#{round}"
+            @memory_core.save_coredump(coredump_file)
           end
 
           log.puts "Results of round #{round + 1}   Score Kills  Hits"

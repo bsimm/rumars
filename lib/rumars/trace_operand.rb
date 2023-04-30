@@ -45,5 +45,14 @@ module RuMARS
         "STORE: #{aiformat(@stores[0])}\n" \
         "INS:         #{iformat(@instruction)}\n" \
     end
+
+    def self.csv_header(prefix)
+      "#{prefix}-Pointer;#{prefix}-Load1;#{prefix}-Load2;#{prefix}-Store"
+    end
+
+    def to_csv
+      "#{@pointer};#{aiformat(@loads[0])};#{aiformat(@loads[1])};" \
+        "#{aiformat(stores[0])}"
+    end
   end
 end

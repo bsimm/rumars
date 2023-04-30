@@ -11,19 +11,19 @@ require_relative 'trace_instruction'
 
 module RuMARS
   class Tracer
-    def initialize
+    def initialize(max_traces = 100)
       @traces = []
       @traces_by_pid = {}
       @current_instruction = nil
       @current_operand = nil
-      @max_traces = 100
+      @max_traces = max_traces
     end
 
     def next_instruction(address, instruction, pid)
-      @traces.shift if @traces.length >= @max_traces
+      @traces.shift if @max_traces.positive? && @traces.length >= @max_traces
       @traces << (@current_instruction = TraceInstruction.new(address, instruction, pid))
       @traces_by_pid[pid] ||= []
-      @traces_by_pid[pid].shift if @traces_by_pid[pid].length >= @max_traces
+      @traces_by_pid[pid].shift if @max_traces.positive? && @traces_by_pid[pid].length >= @max_traces
       @traces_by_pid[pid].append(@current_instruction)
     end
 
@@ -75,6 +75,17 @@ module RuMARS
 
     def to_s
       @traces.each(&:to_s).join("\n#{'-' * 70}\n")
+    end
+
+    def save(file_name)
+      begin
+        File.write(file_name, TraceInstruction.csv_header + @traces.map(&:to_csv).join("\n"))
+      rescue IOError => e
+        puts "Error writing file '#{file_name}': #{e.message}"
+        return false
+      end
+
+      true
     end
   end
 end

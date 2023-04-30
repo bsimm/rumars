@@ -70,6 +70,20 @@ module RuMARS
       s
     end
 
+    def self.csv_header
+      'Cycle;PID;Address;Instruction;' \
+        "#{TraceOperand.csv_header('A')};" \
+        "#{TraceOperand.csv_header('B')};" \
+        "Store1;Store2;PCS\n"
+    end
+
+    def to_csv
+      "#{@cycle_counter};#{@pid};#{@address};#{@instruction};" \
+        "#{a_operand.to_csv};#{b_operand.to_csv};" \
+        "#{aiformat(@stores[0])};#{aiformat(@stores[1])};" \
+        "#{@pcs&.join(',')}"
+    end
+
     def pcs_to_s
       return '' unless @pcs
 

@@ -72,6 +72,14 @@ module RuMARS
           @settings[:write_limit] = int
         end
 
+        p.on('--coredumpfile FILENAME', String, 'Dump core memory into this file at end of run') do |str|
+          @settings[:coredump_file] = str
+        end
+
+        p.on('--tracefile FILENAME', String, 'Save instruction execution trace to this file') do |str|
+          @settings[:trace_file] = str
+        end
+
         p.on('-h', '--help', 'Print this help') do
           puts p
           exit

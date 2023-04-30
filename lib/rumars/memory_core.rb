@@ -10,6 +10,7 @@
 require 'rainbow'
 
 require_relative 'instruction'
+require_relative 'format'
 
 module RuMARS
   # This class represents the core memory of the simulator. The size determines
@@ -19,6 +20,8 @@ module RuMARS
   class MemoryCore
     attr_reader :warriors, :settings
     attr_accessor :tracer, :io_trace
+
+    include Format
 
     @size = 8000
 
@@ -82,6 +85,24 @@ module RuMARS
         start_address.upto(end_address) do |address|
           instruction = @instructions[address]
           file.puts("#{' ' * 12}#{instruction}")
+        end
+        file.close
+      rescue IOError => e
+        puts "Error writing file '#{file_name}': #{e.message}"
+        return false
+      end
+
+      true
+    end
+
+    def save_coredump(file_name)
+      begin
+        file = File.open(file_name, 'w')
+
+        MemoryCore.size.times do |address|
+          instruction = @instructions[address]
+          # Only save instructions that contain non-default values
+          file.puts("#{aformat(address)}: #{instruction}") unless instruction.pid.zero?
         end
         file.close
       rescue IOError => e
