@@ -43,7 +43,7 @@ See [core](core) for details on how mod maths are used when resolving addresses.
 
 ## Write limit
 
-Instructions beyond this distance from the currenlty executing instruction
+Instructions beyond this distance from the currently executing instruction
 cannot be written to.  If a write address exceeds the write limit (relative to
 the currently executing instruction) the address is wrapped around to restrict
 it to the write limit.  In effect this limit restricts write operations to a

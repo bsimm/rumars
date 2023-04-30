@@ -77,7 +77,7 @@ behaviour of the [.f](modifiers#f) modifier.
 
 ## Default Modifiers
 
-Which modifier is inserted as a default is dependant upon the instruction's opcode and `A` and `B` addressing modes as follows:
+Which modifier is inserted as a default is dependent upon the instruction's opcode and `A` and `B` addressing modes as follows:
 
 |Opcode|A-mode|B-mode|Default Modifier|
 |---|---|---|---|

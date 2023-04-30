@@ -70,7 +70,7 @@ dat    0, 0  ; <- this instruction will be overwritten
 jmp    0     ; <- with this instruction
 ```
 
-The `mov` instruction is about to be executed. The `B` opeand is using the
+The `mov` instruction is about to be executed. The `B` operand is using the
 [Direct](#direct) addressing mode and is refering to the third instruction
 (`dat 0, 0`).
 

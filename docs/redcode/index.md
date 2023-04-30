@@ -1,6 +1,6 @@
 # Redcode Reference
 
-Redcode is the languaged used to write warriors for the game corewar.
+Redcode is the language used to write warriors for the game corewar.
 
 Redcode resembles assembly language, with each instruction being composed of an
 [opcode](opcodes) and two [operands](operands).

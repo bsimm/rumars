@@ -25,7 +25,7 @@ $0, $0` which are [Dat](../redcode/opcodes#dat_data) instructions.
 
 ## Addresses
 
-Each position within Core has an abolute address, however in practice,
+Each position within Core has an absolute address, however in practice,
 warrior's use relative addresses and are unable to know the absolute address of
 the instructions they execute.
 

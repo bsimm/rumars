@@ -50,7 +50,7 @@ module RuMARS
 
       op_bus = OperandBus.new
 
-      if @address_mode == '#' || @address_mode == '' # Immedidate
+      if @address_mode == '#' || @address_mode == '' # Immediate
         # The pointer is set to 0 for immediate values.
         op_bus.pointer = 0
       else
