@@ -105,6 +105,7 @@ module RuMARS
       @line_no = 0
       @file_name = nil
       @scanner = nil
+      @last_equ_label = nil
       @for_loops = []
       # Hash to store the EQU definitions
       @constants = {
@@ -164,7 +165,10 @@ module RuMARS
             line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)
           end
 
-          parse(line, :comment_or_instruction)
+          # EQU statement can expand into multiple lines.
+          line.split("\n").each do |mline|
+            parse(mline, :comment_or_instruction)
+          end
 
           break unless (line = buffer_lines.shift)
         end
@@ -347,7 +351,15 @@ module RuMARS
     end
 
     def pseudo_or_instruction(label)
-      equ_instruction(label) || for_instruction(label) || end_instruction(label) || org_instruction(label) || instruction(label)
+      ok = (equ_read = equ_instruction(label)) || for_instruction(label) ||
+           end_instruction(label) || org_instruction(label) ||
+           instruction(label)
+
+      # Reading any other instruction type than an EQU will reset this variable.
+      # It is needed for multi-line EQU statements.
+      @last_equ_label = nil unless equ_read
+
+      ok
     end
 
     def equ_instruction(label)
@@ -355,10 +367,19 @@ module RuMARS
 
       return nil unless e
 
-      raise ParseError.new(self, 'EQU lines must have a label') if label.empty?
+      if label.empty?
+        raise ParseError.new(self, 'EQU lines must have a label') unless @last_equ_label
+
+        # We have a multi-line EQU statement. We'll just append the line to the
+        # definition in the last line.
+        @constants[@last_equ_label] += "\n" + definition
+
+        return true
+      end
 
       raise ParseError.new(self, "Constant #{label} has already been defined") if @constants.include?(label)
 
+      @last_equ_label = label
       @constants[label] = definition
 
       true
