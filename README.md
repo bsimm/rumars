@@ -18,7 +18,7 @@ War](https://en.wikipedia.org/wiki/Core_War) Memory Array Redcode Simulator
 is a virtual arena where 2 or more programmers can let their programs fight against
 each other. The programs are written in an assembly dialect called
 [Redcode](https://scrapper.github.io/rumars/redcode/index). Core War has
-evolved since the orinal version. RuMARS supports the ICWS-94
+evolved since the original version. RuMARS supports the ICWS-94
 standard draft and some additional extensions like read and write limits and
 new features introduced by pMARS. RuMARS purposely adds new features so that
 new strategies need to be developed to compete successfully against other
@@ -30,7 +30,7 @@ limits of processes to foster the creation of new strategies and more complex
 warriors.
 
 RuMARS is not just a virtual machine for Redcode programs but also an
-integraded development environment to write and debug Redcode programs.
+integrated development environment to write and debug Redcode programs.
 
 ![Redcode IDE](/screenshots/debug.png?raw=true "Redcode IDE")
 

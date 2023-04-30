@@ -136,14 +136,14 @@ module TextWM
       answer = receive
       line, column = answer[2..].split(';')
 
-      # Terminals tradionally use 1,1 as coordinate for the top left corner.
+      # Terminals traditionally use 1,1 as coordinate for the top left corner.
       # We prefer to use 0, 0.
       [column.to_i - 1, line.to_i - 1]
     end
 
     # Set the cursor to the given position.
     def set_cursor_position(column, line)
-      # Terminals tradionally use 1,1 as coordinate for the top left corner.
+      # Terminals traditionally use 1,1 as coordinate for the top left corner.
       # We prefer to use 0, 0.
       send("\e[#{line + 1};#{column + 1}H")
     end

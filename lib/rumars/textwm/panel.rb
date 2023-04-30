@@ -57,7 +57,7 @@ module TextWM
 
       # Determine the size of the spaces between the buttons. The left edge
       # of the first button and the right edge of the last button should be
-      # aligend with the view edges.
+      # aligned with the view edges.
       buttons_length = buttons.map { |b| "#{b.key}-#{b.label}" }.join.length
       space_count = buttons.length - 1
       total_spaces_length = @width - buttons_length

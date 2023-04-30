@@ -174,7 +174,7 @@ module RuMARS
     end
 
     def toggle_core_view
-      # The core view can be invisble, small and big. The other panes will be
+      # The core view can be invisible, small and big. The other panes will be
       # adjusted accordingly.
       current_size = @vsplits2.ratios[1]
       if current_size.zero?

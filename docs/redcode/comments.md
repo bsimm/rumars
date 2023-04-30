@@ -3,7 +3,7 @@
 Redcode allows single line comments to be included in the warrior's source code
 by using the semi-colon `;` character similar to assembly language.
 
-The parser will ignore everything after the semi-colon (exlucding it from the
+The parser will ignore everything after the semi-colon (excluding it from the
 parsed output) until it encounters the end of the line.
 
 At times, redcode can be quite cryptic so comments are a useful way of

@@ -117,7 +117,7 @@ Mathematical expressions can use the following operators:
 * / division
 * % modulo
 
-Multiplication and division operatiors have precendence (are evaluated first)
+Multiplication and division operators have precedence (are evaluated first)
 over addition and subtraction.
 
 ```
@@ -186,7 +186,7 @@ resolved during parsing and replaced with their numeric equivalent.
 |---|---|
 |CORESIZE|The size of the core memory|
 |MAXCYCLES|The number of cycles which will be executed before a draw is declared|
-|MAXPROCESSES|The maxmimum number of processes each warrior can have|
+|MAXPROCESSES|The maximum number of processes each warrior can have|
 |MAXLENGTH|The maximum length (number of instructions) a warrior can have|
 |CURLINE|The absolute position (beginning at zero) of this line within the warrior's source code|
 |MINDISTANCE|The closest that two warriors can be placed when loaded into core|
