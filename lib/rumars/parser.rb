@@ -268,23 +268,23 @@ module RuMARS
     end
 
     def equ
-      scan(/EQU/i)
+      scan(/EQU(?=[^\w])/i)
     end
 
     def for_token
-      scan(/FOR/i)
+      scan(/FOR(?=[^\w])/i)
     end
 
     def rof
-      scan(/ROF/i)
+      scan(/ROF(?=[^\w])/i)
     end
 
     def end_token
-      scan(/END/i)
+      scan(/END(?=[^\w])/i)
     end
 
     def org
-      scan(/ORG/i)
+      scan(/ORG(?=[^\w])/i)
     end
 
     def not_comment
@@ -347,7 +347,7 @@ module RuMARS
     end
 
     def pseudo_or_instruction(label)
-      equ_instruction(label) || for_instruction(label) || end_instruction || org_instruction || instruction(label)
+      equ_instruction(label) || for_instruction(label) || end_instruction(label) || org_instruction(label) || instruction(label)
     end
 
     def equ_instruction(label)
@@ -376,23 +376,25 @@ module RuMARS
       true
     end
 
-    def org_instruction
+    def org_instruction(label)
       (o = org) && space && (exp = expr)
 
       return nil unless o
 
       raise ParseError.new(self, 'Expression expected') unless exp
 
+      @program.add_label(label) unless label.empty?
       @program.start_address = exp
 
       true
     end
 
-    def end_instruction
+    def end_instruction(label)
       (e = end_token) && space && (exp = expr)
 
       return nil unless e
 
+      @program.add_label(label) unless label.empty?
       # Older Redcode standards used the END instruction to set the program start address
       @program.start_address = exp if exp
 
@@ -456,7 +458,7 @@ module RuMARS
     end
 
     def expression
-      (m = mode) && (e = expr)
+      (m = mode) && space && (e = expr)
       raise ParseError.new(self, 'Expression expected') unless e
 
       Operand.new(m, e)

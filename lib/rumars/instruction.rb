@@ -548,7 +548,7 @@ module RuMARS
                                      "#{op_text} B.b:#{nformat(irb.b_number)} &&" \
                                      "A.b:#{nformat(ira.b_number)} " \
                                      "#{op_text} B.a:#{nformat(irb.a_number)}")
-        return next2_pc if ira.a_number.send(irb.b_number) && ira.b_number.send(op, irb.a_number)
+        return next2_pc if ira.a_number.send(op, irb.b_number) && ira.b_number.send(op, irb.a_number)
       when 'I'
         if op_text == '<'
           # For the < operation, .I is identical to .F
