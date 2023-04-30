@@ -51,7 +51,8 @@ module RuMARS
         100, # min_distance: 100
         4000, # read_limit: 4000
         4000, # write_limit: 4000
-        1, #rounds: 1
+        1, # rounds: 1
+        'ui' # start user interface
       )
       # Process the commandline arguments to adjust configuration options.
       @files = CommandlineArgumentsParser.new(@settings).parse(argv)
@@ -68,6 +69,18 @@ module RuMARS
     end
 
     def main(stdout = $stdout, stdin = $stdin)
+      case @settings[:mode]
+      when 'ui'
+        user_interace(stdout, stdin)
+      when 'asm'
+        assemble_files(stdout)
+      when 'btl'
+        assemble_files(stdout)
+        battle(stdout)
+      end
+    end
+
+    def user_interace(stdout, stdin)
       # Setup the user interface
       @textwm = TextWM::WindowManager.new(stdout, stdin)
       setup_windows
@@ -85,6 +98,55 @@ module RuMARS
         @textwm.event_loop
       ensure
         $stdout = old_stdout
+      end
+    end
+
+    def assemble_files(stdout)
+      @log_window = stdout
+
+      @files.each do |file_name|
+        break unless load_warrior(file_name)
+      end
+    end
+
+    def battle(log, rounds = @settings[:rounds])
+      puts 'Type CTRL-C to interrupt the battle'
+
+      @warriors.each(&:reset_scores)
+      Signal.trap('SIGINT') { throw :signal_interrupt }
+      catch :signal_interrupt do
+        rounds.times do |round|
+          @warriors_window&.round = round
+          restart
+          reload_warriors_into_core
+          @memory_core.io_trace = []
+          @settings[:max_cycles].times do |i|
+            @scheduler.step
+            if ((i + 1) % 10).zero?
+              @warriors_window&.cycle = i
+              @textwm&.update_windows
+            end
+          end
+
+          log.puts "Results of round #{round + 1}   Score Kills  Hits"
+          warriors = @warriors.sort { |w1, w2| w2.score <=> w1.score }
+          warriors.first.wins += 1 if warriors.length > 1 && warriors[0].score > warriors[1].score
+          warriors.each_with_index do |warrior, index|
+            log.puts "#{index + 1}. " \
+              "#{format("%-16s  %5d %5d %5d", warrior.name, warrior.score, warrior.kills, warrior.hits)}"
+          end
+        end
+        Signal.trap('SIGINT', 'DEFAULT')
+      end
+      @memory_core.io_trace = nil
+
+      warriors = @warriors.sort { |w1, w2| w2.wins <=> w1.wins }
+      log.puts 'Results of the battle   Wins'
+      place = 0
+      previous_wins = -1
+      warriors.each do |warrior|
+        place += 1 if previous_wins != warrior.wins
+        log.puts "#{place}. #{format("%-16s    %5d", warrior.name, warrior.wins)}"
       end
     end
 
@@ -177,7 +239,7 @@ module RuMARS
       # The core view can be invisible, small and big. The other panes will be
       # adjusted accordingly.
       current_size = @vsplits2.ratios[1]
-      if current_size.zero?
+      if current_size&.zero?
         # The core view is currently invisible. Make it small.
         @vsplits1.ratios = [nil, 10, 1]
         @vsplits2.ratios = [nil, 10]

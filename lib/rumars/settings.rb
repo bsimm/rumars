@@ -9,5 +9,6 @@
 
 module RuMARS
   Settings = Struct.new(:core_size, :max_cycles, :max_processes, :max_length,
-                        :min_distance, :read_limit, :write_limit, :rounds)
+                        :min_distance, :read_limit, :write_limit, :rounds,
+                        :mode)
 end

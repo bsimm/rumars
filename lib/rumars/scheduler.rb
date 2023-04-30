@@ -62,27 +62,6 @@ module RuMARS
       Signal.trap('SIGINT', 'DEFAULT')
     end
 
-    # Run until only a single warrior is still alive
-    def battle(max_cycles = -1)
-      cycles = 0
-      # Clear screen
-      print("\ec")
-      loop do
-        # Move cursor back to top left corner
-        print("\e[0;0H")
-        step
-        @memory_core.dump(program_counters)
-
-        cycles += 1
-        break if alive_warriors == 1
-
-        if max_cycles.positive? && cycles >= max_cycles
-          log("No winner was found after #{max_cycles} cycles")
-          break
-        end
-      end
-    end
-
     # Execute one step for each Warrior
     def step
       @warriors.each do |warrior|

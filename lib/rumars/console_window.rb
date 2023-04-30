@@ -185,45 +185,8 @@ module RuMARS
     end
 
     def battle(args)
-      log = @mars.log_window
-      puts 'Type CTRL-C to interrupt the battle'
-
       rounds = args.first&.to_i || @mars.settings[:rounds]
-
-      @mars.warriors.each(&:reset_scores)
-      Signal.trap('SIGINT') { throw :signal_interrupt }
-      catch :signal_interrupt do
-        rounds.times do |round|
-          @mars.warriors_window.round = round
-          restart
-          @mars.memory_core.io_trace = []
-          8000.times do |i|
-            @mars.scheduler.step
-            if ((i + 1) % 10).zero?
-              @mars.warriors_window.cycle = i
-              @textwm.update_windows
-            end
-          end
-
-          log.puts "Results of round #{round}   Score Kills  Hits"
-          warriors = @mars.warriors.sort { |w1, w2| w2.score <=> w1.score }
-          warriors.first.wins += 1
-          warriors.each_with_index do |warrior, index|
-            log.puts "#{index + 1}. #{format("%-16s  %5d %5d %5d", warrior.name, warrior.score, warrior.kills, warrior.hits)}"
-          end
-        end
-        Signal.trap('SIGINT', 'DEFAULT')
-      end
-      @mars.memory_core.io_trace = nil
-
-      warriors = @mars.warriors.sort { |w1, w2| w2.wins <=> w1.wins }
-      log.puts 'Results of the battle   Wins'
-      place = 0
-      previous_wins = -1
-      warriors.each do |warrior|
-        place += 1 if previous_wins != warrior.wins
-        log.puts "#{place}. #{format("%-16s    %5d", warrior.name, warrior.wins)}"
-      end
+      @mars.battle(@mars.log_window, rounds)
     end
 
     def create(args)

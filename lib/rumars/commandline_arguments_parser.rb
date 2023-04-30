@@ -35,6 +35,11 @@ module RuMARS
 
         BANNER
 
+        p.on('--mode (ui|asm|btl)', '-m (ui|asm|btl)', String,
+             'Show user interface [ui], parse files only (asm) or battle warriors(btl)') do |str|
+          @settings[:mode] = str
+        end
+
         p.on('--coresize N', '-s N', Integer, "Size of core [#{@settings[:core_size]}]") do |int|
           @settings[:core_size] = int
         end
