@@ -4,4 +4,4 @@
 require "bundler/setup"
 require "rumars"
 
-RuMARS::MARS.new(ARGV).main
+exit(RuMARS::MARS.new(ARGV).main ? 0 : 1)

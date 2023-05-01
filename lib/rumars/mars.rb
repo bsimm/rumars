@@ -101,14 +101,18 @@ module RuMARS
       ensure
         $stdout = old_stdout
       end
+
+      true
     end
 
     def assemble_files(stdout)
       @log_window = stdout
 
       @files.each do |file_name|
-        break unless load_warrior(file_name)
+        return false unless load_warrior(file_name)
       end
+
+      true
     end
 
     def battle(log, rounds = @settings[:rounds])
@@ -171,6 +175,8 @@ module RuMARS
         place += 1 if previous_wins != warrior.wins
         log.puts "#{place}. #{format("%-16s    %5d", warrior.name, warrior.wins)}"
       end
+
+      true
     end
 
     def restart
