@@ -77,7 +77,8 @@ module RuMARS
       when 'asm'
         assemble_files(stdout)
       when 'btl'
-        assemble_files(stdout)
+        return false unless assemble_files(stdout)
+
         battle(stdout)
       end
     end
@@ -101,8 +102,6 @@ module RuMARS
       ensure
         $stdout = old_stdout
       end
-
-      true
     end
 
     def assemble_files(stdout)
@@ -116,37 +115,23 @@ module RuMARS
     end
 
     def battle(log, rounds = @settings[:rounds])
-      puts 'Type CTRL-C to interrupt the battle'
-
       @warriors.each(&:reset_scores)
-      Signal.trap('SIGINT') { throw :signal_interrupt }
-      catch :signal_interrupt do
+
+      abort_with_ctrl_c(log, 'the battle') do
         rounds.times do |round|
           @warriors_window&.round = round
           restart
           reload_warriors_into_core
           @memory_core.io_trace = []
 
-          if (trace_file = @settings[:trace_file])
-            @tracer = Tracer.new(0)
-            old_debug_level = @debug_level
-            self.debug_level = 1
-          end
-
-          @settings[:max_cycles].times do |i|
-            @scheduler.step
-            if ((i + 1) % 10).zero?
-              @warriors_window&.cycle = i
-              @textwm&.update_windows
+          trace_execution do
+            @settings[:max_cycles].times do |i|
+              @scheduler.step
+              if ((i + 1) % 10).zero?
+                @warriors_window&.cycle = i
+                @textwm&.update_windows
+              end
             end
-          end
-
-          if trace_file
-            trace_file += round.zero? ? '' : "-#{round}"
-            @tracer.save(trace_file)
-
-            self.debug_level = old_debug_level
-            @tracer = nil
           end
 
           # Save the coredump file if the user has specified one.
@@ -155,28 +140,12 @@ module RuMARS
             @memory_core.save_coredump(coredump_file)
           end
 
-          log.puts "Results of round #{round + 1}   Score Kills  Hits"
-          warriors = @warriors.sort { |w1, w2| w2.score <=> w1.score }
-          warriors.first.wins += 1 if warriors.length > 1 && warriors[0].score > warriors[1].score
-          warriors.each_with_index do |warrior, index|
-            log.puts "#{index + 1}. " \
-              "#{format("%-16s  %5d %5d %5d", warrior.name, warrior.score, warrior.kills, warrior.hits)}"
-          end
+          log_round_result(log, round)
         end
-        Signal.trap('SIGINT', 'DEFAULT')
       end
       @memory_core.io_trace = nil
 
-      warriors = @warriors.sort { |w1, w2| w2.wins <=> w1.wins }
-      log.puts 'Results of the battle   Wins'
-      place = 0
-      previous_wins = -1
-      warriors.each do |warrior|
-        place += 1 if previous_wins != warrior.wins
-        log.puts "#{place}. #{format("%-16s    %5d", warrior.name, warrior.wins)}"
-      end
-
-      true
+      log_match_result(log)
     end
 
     def restart
@@ -298,6 +267,17 @@ module RuMARS
 
     private
 
+    def abort_with_ctrl_c(stdout, what)
+      stdout.puts "Type CTRL-C to interrupt #{what}"
+      Signal.trap('SIGINT') { throw :signal_interrupt }
+
+      catch :signal_interrupt do
+        yield
+
+        Signal.trap('SIGINT', 'DEFAULT')
+      end
+    end
+
     def setup_windows
       # +-vsplits1----------------------------+
       # |+-hsplits1--------------------------+|
@@ -386,6 +366,57 @@ module RuMARS
       @warriors << warrior
 
       true
+    end
+
+    def trace_execution
+      if (trace_file = @settings[:trace_file])
+        @tracer = Tracer.new(0)
+        old_debug_level = @debug_level
+        self.debug_level = 1
+      end
+
+      yield
+
+      return unless trace_file
+
+      trace_file += round.zero? ? '' : "-#{round}"
+      @tracer.save(trace_file)
+
+      self.debug_level = old_debug_level
+      @tracer = nil
+    end
+
+    def log_round_result(log, round)
+      log.puts "Results of round #{round + 1}   Score Kills  Hits"
+
+      # Sort warriors descending by their score
+      warriors = @warriors.sort { |w1, w2| w2.score <=> w1.score }
+
+      # If the first two have an identical score we call it a draw and don't
+      # pick a winner.
+      warriors.first.wins += 1 if warriors.length > 1 && warriors[0].score > warriors[1].score
+
+      warriors.each_with_index do |warrior, index|
+        log.puts "#{index + 1}. " \
+          "#{format('%<name>-16s  %<score>5d %<kills>5d %<hits>5d',
+                    name: warrior.name, score: warrior.score,
+                    kills: warrior.kills, hits: warrior.hits)}"
+      end
+    end
+
+    def log_match_result(log)
+      # Sort warriors descending by their number of wins
+      warriors = @warriors.sort { |w1, w2| w2.wins <=> w1.wins }
+
+      log.puts 'Results of the battle   Wins'
+      place = 0
+      previous_wins = -1
+
+      warriors.each do |warrior|
+        place += 1 if previous_wins != warrior.wins
+        log.puts "#{place}. #{format('%<name>-16s    %<wins>5d',
+                                     name: warrior.name, wins: warrior.wins)}"
+      end
     end
   end
 end
