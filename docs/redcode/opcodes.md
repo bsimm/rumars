@@ -243,7 +243,7 @@ number(s) at the destination instruction are decremented. One common use of
 this opcode is to create the equivalent of a simple `for` loop in higher level
 languages.
 
-Unlike the `jmn` intruction, the `djn` instruction **will** perform the jump if
+Unlike the `jmn` instruction, the `djn` instruction **will** perform the jump if
 **either** operand is zero when using the [.f](modifiers#f), [.x](modifiers#x)
 and [.i](modifiers#i) modifiers.
 
