@@ -44,6 +44,8 @@ module RuMARS
     # @param [String] name of the label
     # @param [Integer] value associated with the label
     def add_label(name, value = @instructions.size)
+      raise ArgumentError, "Label name must not be nil" unless name
+
       return false if symbol_defined?(name)
 
       @labels[name] = value
@@ -57,7 +59,7 @@ module RuMARS
       @instructions.each_with_index do |instruction, address|
         instruction.evaluate_expressions(@labels, address)
       rescue Expression::ExpressionError => e
-        raise Expression::ExpressionError, "#{instruction}: #{e.message}"
+        raise Expression::ExpressionError.new(e.expression, "#{instruction}: #{e.message}", e.line_no)
       end
     end
 

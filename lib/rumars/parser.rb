@@ -80,14 +80,15 @@ module RuMARS
 
     # This class handles all parsing errors.
     class ParseError < RuntimeError
-      def initialize(parser, message)
+      def initialize(parser, message, line_no = nil)
         super()
         @parser = parser
         @message = message
+        @line_no = line_no
       end
 
       def to_s
-        s = +"#{@parser.file_name ? "#{@parser.file_name}: " : ''}#{@parser.line_no}: #{@message}\n  "
+        s = +"#{@parser.file_name ? "#{@parser.file_name}: " : ''}#{@line_no || @parser.line_no}: #{@message}\n  "
 
         unless @parser.scanner.eos?
           s += "#{@parser.scanner.string}\n  " \
@@ -137,38 +138,21 @@ module RuMARS
     def preprocess_and_parse(source_code)
       @program = Program.new
 
-      @line_no = 0
-      # Check if we have a redcode start marker.
-      @ignore_lines = !(REDCODE_MARKER_REGEXP =~ source_code).nil?
+      @ignore_lines = false
       buffer_lines = []
-      source_code.lines.each do |line|
-        # Replace TABs with a space
-        line.gsub!(/\t/, ' ')
-        # Remove all non-visible and non ASCII characters
-        line.gsub!(/[^ -~]/, '')
+      preprocess(source_code).each do |line_no, line|
+        @line_no = line_no
 
-        # If we detect the redcode start marker, we start parsing.
-        @ignore_lines = false if REDCODE_MARKER_REGEXP =~ line
+        # @ignore_lines is set to true when we found the 'end' instruction.
+        next if @ignore_lines
 
-        @line_no += 1
-
-        # Ignore empty lines
-        next if @ignore_lines || /\A\s*\z/ =~ line
-
-        next unless (line = collect_for_loops(line, buffer_lines))
+        # Set the CURLINE constant to the number of already read instructions
+        @constants['CURLINE'] = @program.instructions.length.to_s
 
         loop do
-          # Set the CURLINE constant to the number of already read instructions
-          @constants['CURLINE'] = @program.instructions.length.to_s
+          line = expand_constants(line, buffer_lines)
 
-          @constants.each do |name, text|
-            line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)
-          end
-
-          # EQU statement can expand into multiple lines.
-          line.split("\n").each do |mline|
-            parse(mline, :comment_or_instruction)
-          end
+          parse(line, :comment_or_instruction)
 
           break unless (line = buffer_lines.shift)
         end
@@ -178,7 +162,7 @@ module RuMARS
         @program.evaluate_expressions
       rescue Expression::ExpressionError => e
         @program = nil
-        raise ParseError.new(self, "Error in expression: #{e.message}")
+        raise ParseError.new(self, "Error in expression: #{e.message}", e.line_no)
       end
 
       @program
@@ -195,16 +179,64 @@ module RuMARS
 
     private
 
+    # The preprocessor does the initial processing of the Redcode file. It removes
+    # header (before ;redcode line) and tail (after END) sections. It scans for EQU
+    # instructions and replaces them when found after the declaration. It also
+    # expands FOR/ROF loops. Tabulator signs will be replaced with a space character
+    # and non-ASCII characters will be eliminated.
+    # @return [Array] List of lines. Each line is an 2 field Array of original line
+    #         number and the line.
+    def preprocess(source_code)
+      @line_no = 0
+
+      # Check if we have a redcode start marker.
+      ignore_lines = !(REDCODE_MARKER_REGEXP =~ source_code).nil?
+
+      processed_lines = []
+      buffer_lines = []
+
+      source_code.lines.each do |line|
+        # Replace TABs with a space
+        line.gsub!(/\t/, ' ')
+        # Remove all non-visible and non ASCII characters
+        line.gsub!(/[^ -~]/, '')
+
+        # If we detect the redcode start marker, we start parsing.
+        ignore_lines = false if REDCODE_MARKER_REGEXP =~ line
+
+        @line_no += 1
+
+        # Ignore empty lines
+        next if ignore_lines || /\A\s*\z/ =~ line
+
+        next unless (line = collect_for_loops(line, buffer_lines))
+
+        loop do
+          line = expand_constants(line, buffer_lines)
+
+          @scanner = StringScanner.new(line)
+          unless label_equ_or_for_instruction
+            processed_lines << [@line_no, line]
+            @last_equ_label = nil
+          end
+
+          break unless (line = buffer_lines.shift)
+        end
+      end
+
+      processed_lines
+    end
+
     def collect_for_loops(line, buffer_lines)
       if (current_loop = @for_loops.last)
-        if /^\s*rof\s*(|;.*)$/ =~ line
+        if /^\s*rof\s*(|;.*)$/i =~ line
           @for_loops.pop
-        elsif (fl = /^([A-Za-z_][A-Za-z0-9_]*)\s+for\s+(.+)$/.match(line))
+        elsif (fl = /^([a-z_][a-z0-9_]*)\s+for\s+(.+)$/i.match(line))
           # For loop with loop variable
           new_loop = ForLoop.new(@constants, fl[2], fl[1])
           @for_loops.push(new_loop)
           current_loop.add_line(new_loop)
-        elsif (fl = /^\s*for\s+(.+)$/.match(line))
+        elsif (fl = /^\s*for\s+(.+)$/i.match(line))
           # For loop without loop variable
           new_loop = ForLoop.new(@constants, fl[1])
           @for_loops.push(new_loop)
@@ -218,6 +250,25 @@ module RuMARS
         buffer_lines.concat(current_loop.unroll)
 
         line = buffer_lines.shift
+      end
+
+      line
+    end
+
+    def expand_constants(line, buffer_lines)
+      @constants.each do |name, text|
+        line.gsub!(/(?<!\w)#{name}(?!\w)/, text)
+      end
+
+      # Check if the EQU span multiple lines. If not, just return the expanded
+      # line.
+      return line if (lines = line.split("\n")).length == 1
+
+      # For multiple lines, the first line becomes the current line.
+      line = lines.shift
+      # The other lines will be prepended to the buffer_lines buffer.
+      lines.reverse.each do |ln|
+        buffer_lines.unshift(ln)
       end
 
       line
@@ -267,7 +318,7 @@ module RuMARS
       scan(/.*$/)
     end
 
-    def label
+    def identifier
       scan(/[A-Za-z_][A-Za-z0-9_]*/)
     end
 
@@ -280,11 +331,11 @@ module RuMARS
     end
 
     def rof
-      scan(/ROF(?=[^\w])/i)
+      scan(/ROF(?=([^\w]|$))/i)
     end
 
     def end_token
-      scan(/END(?=[^\w])/i)
+      scan(/END(?=([^\w]|$))/i)
     end
 
     def org
@@ -307,7 +358,7 @@ module RuMARS
       scan(/\.(AB|BA|A|B|F|X|I)/i)
     end
 
-    def whole_number
+    def number
       scan(/[0-9]+/)
     end
 
@@ -319,7 +370,7 @@ module RuMARS
     end
 
     def comment
-      (s = semicolon) && (text = anything)
+      space && (s = semicolon) && (text = anything)
 
       return nil unless s
 
@@ -340,26 +391,36 @@ module RuMARS
       ''
     end
 
-    def instruction_line
-      label = ''
-      space && ((poi = pseudo_or_instruction(label)) ||
-                ((label = optional_label) && space && (poi = pseudo_or_instruction(label))) ||
-                comment) && space && optional_comment
+    def instruction_line(prev_label = nil)
+      return true if pseudo_or_instruction(prev_label)
 
-      # Lines that only have a label are labels for the line with the next instruction.
-      @program.add_label(label) if !label.empty? && !poi
+      @program.add_label(prev_label) if prev_label
+
+      if (label = optional_label) && !instruction_line(label)
+        # Line with just a label. It references the next instruction.
+        @program.add_label(label)
+        # There may be a comment after the label
+        return optional_comment
+      end
+
+      nil
     end
 
     def pseudo_or_instruction(label)
-      ok = (equ_read = equ_instruction(label)) || for_instruction(label) ||
-           end_instruction(label) || org_instruction(label) ||
-           instruction(label)
+      space && (end_instruction(label) || org_instruction(label) ||
+        instruction(label)) && space && optional_comment
+    end
 
-      # Reading any other instruction type than an EQU will reset this variable.
-      # It is needed for multi-line EQU statements.
-      @last_equ_label = nil unless equ_read
+    def label_equ_or_for_instruction(prev_label = nil)
+      return true if equ_or_for_instruction(prev_label)
 
-      ok
+      @program.add_label(prev_label) if prev_label
+
+      (label = optional_label) && label_equ_or_for_instruction(label)
+    end
+
+    def equ_or_for_instruction(label)
+      space && (for_instruction(label) || equ_instruction(label)) && space && optional_comment
     end
 
     def equ_instruction(label)
@@ -367,7 +428,7 @@ module RuMARS
 
       return nil unless e
 
-      if label.empty?
+      unless label
         raise ParseError.new(self, 'EQU lines must have a label') unless @last_equ_label
 
         # We have a multi-line EQU statement. We'll just append the line to the
@@ -392,6 +453,8 @@ module RuMARS
 
       raise ParseError.new(self, 'for loop must have a fixed repeat count') unless repeats
 
+      @last_equ_label = nil
+
       @for_loops << ForLoop.new(@constants, repeats, label)
 
       true
@@ -404,7 +467,7 @@ module RuMARS
 
       raise ParseError.new(self, 'Expression expected') unless exp
 
-      @program.add_label(label) unless label.empty?
+      @program.add_label(label) if label
       @program.start_address = exp
 
       true
@@ -415,7 +478,7 @@ module RuMARS
 
       return nil unless e
 
-      @program.add_label(label) unless label.empty?
+      @program.add_label(label) if label
       # Older Redcode standards used the END instruction to set the program start address
       @program.start_address = exp if exp
 
@@ -440,11 +503,11 @@ module RuMARS
           # If the DAT instruction has only one operand, it will be the B operand.
           # The A operand will be 0.
           e2 = e1
-          e1 = Operand.new('#', Expression.new(0, nil, nil))
+          e1 = Operand.new('#', Expression.new(0, nil, nil, @line_no))
         elsif %w[JMP SPL NOP].include?(opc)
           # These instructions may have only 1 operand. In that case the B
           # operand defaults to 0.
-          e2 = Operand.new('#', Expression.new(0, nil, nil))
+          e2 = Operand.new('#', Expression.new(0, nil, nil, @line_no))
         else
           # All other instructions must always have 2 operands.
           raise ParseError.new(self, "The #{opc} instruction must have 2 operands")
@@ -458,16 +521,16 @@ module RuMARS
     def instruction(label)
       return nil unless (instruction = opcode_and_operands)
 
-      @program.add_label(label) unless label.empty?
+      @program.add_label(label) if label
       @program.append_instruction(instruction)
 
       true
     end
 
     def optional_label
-      (l = label) && colon
+      (l = identifier) && colon
 
-      l || ''
+      l || nil
     end
 
     def optional_modifier
@@ -495,11 +558,11 @@ module RuMARS
         t1 = t1.operand1 unless t1.nil? || t1.operator
 
         if t2.respond_to?(:find_lhs_node) && (node = t2.find_lhs_node(optr))
-          ex = Expression.new(t1, optr, node.operand1)
+          ex = Expression.new(t1, optr, node.operand1, @line_no)
           node.operand1 = ex
           t2
         else
-          Expression.new(t1, optr, t2)
+          Expression.new(t1, optr, t2, @line_no)
         end
       else
         t1
@@ -507,7 +570,11 @@ module RuMARS
     end
 
     def term
-      t = (label || number || parenthesized_expression)
+      signed_term || unsigned_term
+    end
+
+    def unsigned_term
+      t = (identifier || ((n = number) && n.to_i) || parenthesized_expression)
 
       return nil unless t
 
@@ -515,7 +582,17 @@ module RuMARS
       # the precedence evaluation.
       t.parenthesis = true if t.is_a?(Expression)
 
-      Expression.new(t, nil, nil)
+      Expression.new(t, nil, nil, @line_no)
+    end
+
+    def signed_term
+      (s = sign_prefix) && (t = term)
+
+      return nil unless s
+
+      raise ParseError.new(self, 'Sign prefix must be followed by a term') unless t
+
+      s == '-' ? Expression.new(t, s, nil, @line_no) : t
     end
 
     def parenthesized_expression
@@ -528,21 +605,6 @@ module RuMARS
       raise ParseError.new(self, "')' expected") unless cp
 
       e
-    end
-
-    def number
-      (s = signed_number) || (n = whole_number)
-
-      return s if s
-
-      n ? n.to_i : nil
-    end
-
-    def signed_number
-      (sign = sign_prefix) && (n = whole_number)
-      return nil unless sign
-
-      sign == '-' ? -(n.to_i) : n.to_i
     end
 
     def optional_comment

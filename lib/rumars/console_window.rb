@@ -210,6 +210,10 @@ module RuMARS
       end
 
       @current_warrior = warrior
+      # Show the current PC of the selected warrior in the core window.
+      pc = MemoryCore.fold(@current_warrior.task_queue.first + @current_warrior.base_address)
+      @mars.core_window.show_address = pc
+
       puts "Switched to warrior '#{@current_warrior.name}'"
     end
 

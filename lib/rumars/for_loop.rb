@@ -59,7 +59,7 @@ module RuMARS
           # for constants to contain loop variable names that will be
           # replaced in the next step.
           @constants.each do |name, text|
-            line.gsub!(/(?!=\w)#{name}(?!<=\w)/, text)
+            line.gsub!(/(?<!\w)#{name}(?!\w)/, text)
           end
 
           # Replace the '&<loop_var_name>' strings with the respective repeat counters.
@@ -78,8 +78,9 @@ module RuMARS
 
     def replace_loop_var_name_with_index(text, loop_var_name, counter)
       raise if loop_var_name.nil? || loop_var_name.empty?
+
       text.gsub(Regexp.new("&#{loop_var_name}(?!<=\w)"), format('%02d', counter + 1))
-          .gsub(Regexp.new("(?!<=\W)#{loop_var_name}(?!<=\w)"), (counter + 1).to_s)
+          .gsub(Regexp.new("(?<!\w)#{loop_var_name}(?!\w)"), (counter + 1).to_s)
     end
 
     def resolve_expression(outer_loop_variables)

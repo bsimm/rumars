@@ -10,9 +10,17 @@
 module RuMARS
   class Expression
     class ExpressionError < RuntimeError
+      attr_reader :expression, :line_no
+
+      def initialize(expression, message, line_no)
+        super(message)
+
+        @expression = expression
+        @line_no = line_no
+      end
     end
 
-    attr_reader :operator
+    attr_reader :operator, :line_no
     attr_accessor :operand1, :parenthesis
 
     PRECEDENCE = {
@@ -29,15 +37,16 @@ module RuMARS
       '<=' => 2,
       '&&' => 1,
       '||' => 0
-    }
+    }.freeze
 
-    def initialize(operand1, operator, operand2)
+    def initialize(operand1, operator, operand2, line_no)
       raise ArgumentError, 'Operand 1 of an expression must not be nil' unless operand1
       raise ArgumentError, 'Binary expression must have an operator' if operand2 && operator.nil?
 
       @operand1 = operand1
       @operator = operator
       @operand2 = operand2
+      @line_no = line_no
 
       @parenthesis = false
     end
@@ -45,7 +54,7 @@ module RuMARS
     def eval(symbol_table, instruction_address = 0)
       eval_recursive(symbol_table, instruction_address)
     rescue ExpressionError => e
-      raise ExpressionError, "#{self}: #{e.message}"
+      raise ExpressionError.new(self, "#{self}: #{e.message}", @line_no)
     end
 
     def eval_recursive(symbol_table, instruction_address)
@@ -108,11 +117,11 @@ module RuMARS
       when '*'
         op1 * op2
       when '/'
-        raise ExpressionError, 'Division by zero' if op2.zero?
+        raise ExpressionError.new(self, 'Division by zero', @line_no) if op2.zero?
 
         op1 / op2
       when '%'
-        raise ExpressionError, 'Modulo by zero' if op2.zero?
+        raise ExpressionError.new(self, 'Modulo by zero', @line_no) if op2.zero?
 
         op1 % op2
       when '=='
@@ -141,7 +150,7 @@ module RuMARS
       when Integer
         operand
       when String
-        raise ExpressionError, "Unknown symbol #{operand}" unless symbol_table.include?(operand)
+        raise ExpressionError.new(self, "Unknown symbol #{operand}", @line_no) unless symbol_table.include?(operand)
 
         symbol_table[operand].to_i - instruction_address
       when Expression
