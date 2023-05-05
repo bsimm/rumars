@@ -414,9 +414,15 @@ module RuMARS
     def label_equ_or_for_instruction(prev_label = nil)
       return true if equ_or_for_instruction(prev_label)
 
-      @program.add_label(prev_label) if prev_label
+      if (label = optional_label) && label_equ_or_for_instruction(label)
+        # We only care about labels that are used in EQU or FOR lines as these
+        # lines will be discarded during preprocessing. For all other lines,
+        # we can't distinguish between labels and instructions at this point.
+        @program.add_label(prev_label) if prev_label
+        return true
+      end
 
-      (label = optional_label) && label_equ_or_for_instruction(label)
+      false
     end
 
     def equ_or_for_instruction(label)

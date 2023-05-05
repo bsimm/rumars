@@ -39,7 +39,7 @@ module RuMARS
       '||' => 0
     }.freeze
 
-    def initialize(operand1, operator, operand2, line_no)
+    def initialize(operand1, operator, operand2, line_no = -1)
       raise ArgumentError, 'Operand 1 of an expression must not be nil' unless operand1
       raise ArgumentError, 'Binary expression must have an operator' if operand2 && operator.nil?
 
