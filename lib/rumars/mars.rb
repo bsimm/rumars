@@ -124,7 +124,7 @@ module RuMARS
           reload_warriors_into_core
           @memory_core.io_trace = []
 
-          trace_execution do
+          trace_execution(round) do
             @settings[:max_cycles].times do |i|
               @scheduler.step
               if ((i + 1) % 10).zero?
@@ -368,7 +368,7 @@ module RuMARS
       true
     end
 
-    def trace_execution
+    def trace_execution(round)
       if (trace_file = @settings[:trace_file])
         @tracer = Tracer.new(0)
         old_debug_level = @debug_level

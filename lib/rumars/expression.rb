@@ -26,6 +26,7 @@ module RuMARS
     PRECEDENCE = {
       '*' => 4,
       '/' => 4,
+      '%' => 4,
       '+' => 3,
       '-' => 3,
       '!' => 3,
@@ -99,7 +100,7 @@ module RuMARS
       when '-'
         -result
       when '!'
-        result ? 0 : 1
+        result.zero? ? 1 : 0
       else
         result
       end

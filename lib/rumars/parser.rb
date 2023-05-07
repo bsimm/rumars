@@ -76,7 +76,7 @@ module RuMARS
   class Parser
     # If a line that matches this regexp is present, the parsing will only
     # start after this line.
-    REDCODE_MARKER_REGEXP = /^;redcode(-94|-x|)\s*.*$/
+    REDCODE_MARKER_REGEXP = /^;redcode(-94|-x|-94x|-nop|-94m|-icws|-94xm|)\s*.*$/
 
     # This class handles all parsing errors.
     class ParseError < RuntimeError
@@ -101,10 +101,10 @@ module RuMARS
 
     attr_reader :file_name, :line_no, :scanner, :constants
 
-    def initialize(settings, logger = $stdout)
+    def initialize(settings, logger = $stdout, file_name = nil)
       @logger = logger
+      @file_name = file_name
       @line_no = 0
-      @file_name = nil
       @scanner = nil
       @last_equ_label = nil
       @for_loops = []
@@ -140,7 +140,7 @@ module RuMARS
 
       @ignore_lines = false
       buffer_lines = []
-      preprocess(source_code).each do |line_no, line|
+      preprocess(source_code.scrub).each do |line_no, line|
         @line_no = line_no
 
         # @ignore_lines is set to true when we found the 'end' instruction.
@@ -148,6 +148,8 @@ module RuMARS
 
         # Set the CURLINE constant to the number of already read instructions
         @constants['CURLINE'] = @program.instructions.length.to_s
+
+        next unless (line = collect_for_loops(line, buffer_lines, true))
 
         loop do
           line = expand_constants(line, buffer_lines)
@@ -194,6 +196,7 @@ module RuMARS
 
       processed_lines = []
       buffer_lines = []
+      @for_loops = []
 
       source_code.lines.each do |line|
         # Replace TABs with a space
@@ -209,7 +212,7 @@ module RuMARS
         # Ignore empty lines
         next if ignore_lines || /\A\s*\z/ =~ line
 
-        next unless (line = collect_for_loops(line, buffer_lines))
+        next unless (line = collect_for_loops(line, processed_lines, false))
 
         loop do
           line = expand_constants(line, buffer_lines)
@@ -224,32 +227,53 @@ module RuMARS
         end
       end
 
+      raise ParseError.new(self, 'Unterminated FOR loop', @for_loops.first.line_no) unless @for_loops.empty?
+
       processed_lines
     end
 
-    def collect_for_loops(line, buffer_lines)
+    # Process the code one line at a time. In case we are within a loop, lines
+    # are analyzed for end of loop (rof) lines. If the line is not a rof line
+    # it just gets added to the respective loop object. If it is a rof line,
+    # the loop gets unrolled and appended to the buffer lines.
+    def collect_for_loops(line, lines, unroll)
       if (current_loop = @for_loops.last)
         if /^\s*rof\s*(|;.*)$/i =~ line
+          # End of loop found. Remove the loop object from the loop stack.
           @for_loops.pop
         elsif (fl = /^([a-z_][a-z0-9_]*)\s+for\s+(.+)$/i.match(line))
           # For loop with loop variable
-          new_loop = ForLoop.new(@constants, fl[2], fl[1])
+          new_loop = ForLoop.new(@constants, fl[2], @logger, @file_name, @line_no, fl[1])
           @for_loops.push(new_loop)
           current_loop.add_line(new_loop)
         elsif (fl = /^\s*for\s+(.+)$/i.match(line))
           # For loop without loop variable
-          new_loop = ForLoop.new(@constants, fl[1])
+          new_loop = ForLoop.new(@constants, fl[1], @logger, @file_name, @line_no)
           @for_loops.push(new_loop)
           current_loop.add_line(new_loop)
         else
+          # Just add the line to the current loop object.
           current_loop.add_line(line)
         end
 
+        # As long as we are still within a loop, we just return nil to the
+        # caller.
         return nil unless @for_loops.empty?
 
-        buffer_lines.concat(current_loop.unroll)
+        # We have found the end of the most outer loop. Expand all the
+        # loops into the line buffer.
+        if unroll
+          lines.concat(current_loop.unroll)
 
-        line = buffer_lines.shift
+          # The next line to process is the first line of the buffer.
+          line = lines.shift
+        else
+          current_loop.flatten.each do |line|
+            lines << [current_loop.line_no, line]
+          end
+
+          line = nil
+        end
       end
 
       line
@@ -314,6 +338,10 @@ module RuMARS
       scan(/[+-]/)
     end
 
+    def not_prefix
+      scan(/!/)
+    end
+
     def anything
       scan(/.*$/)
     end
@@ -347,7 +375,7 @@ module RuMARS
     end
 
     def opcode
-      scan(/(ADD|CMP|DAT|DIV|DJN|JMN|JMP|JMZ|MOD|MOV|MUL|NOP|SEQ|SNE|SLT|SPL|SUB)(?=[. ])/i)
+      scan(/(ADD|CMP|DAT|DIV|DJN|JMN|JMP|JMZ|MOD|MOV|MUL|NOP|SEQ|SNE|SLT|SPL|SUB)(?=[^\w])/i)
     end
 
     def mode
@@ -382,10 +410,14 @@ module RuMARS
         @program.add_strategy(text[9..])
       elsif text.start_with?('assert ')
         assert = text[7..].strip
-        parser = Parser.new({}, @logger)
+        parser = Parser.new({}, @logger, @file_name)
         expression = parser.parse(assert, :expr)
 
-        raise ParseError.new(self, "Assert failed: #{expression}") unless expression.eval(@constants) == 1
+        begin
+          raise ParseError.new(self, "Assert failed: #{expression}") if expression.eval(@constants).zero?
+        rescue Expression::ExpressionError => e
+          raise ParseError.new(self, "Error in assert expression: #{e.message}", e.line_no)
+        end
       end
 
       ''
@@ -407,7 +439,7 @@ module RuMARS
     end
 
     def pseudo_or_instruction(label)
-      space && (end_instruction(label) || org_instruction(label) ||
+      space && (equ_instruction(label) || for_instruction(label) || end_instruction(label) || org_instruction(label) ||
         instruction(label)) && space && optional_comment
     end
 
@@ -461,7 +493,7 @@ module RuMARS
 
       @last_equ_label = nil
 
-      @for_loops << ForLoop.new(@constants, repeats, label)
+      @for_loops << ForLoop.new(@constants, repeats, @logger, @file_name, @line_no, label)
 
       true
     end
@@ -576,7 +608,7 @@ module RuMARS
     end
 
     def term
-      signed_term || unsigned_term
+      signed_term || not_term || unsigned_term
     end
 
     def unsigned_term
@@ -591,8 +623,18 @@ module RuMARS
       Expression.new(t, nil, nil, @line_no)
     end
 
+    def not_term
+      (n = not_prefix) && space && (t = term)
+
+      return nil unless n
+
+      raise ParseError.new(self, 'Not prefix must be followed by a term') unless t
+
+      Expression.new(t, n, nil, @line_no)
+    end
+
     def signed_term
-      (s = sign_prefix) && (t = term)
+      (s = sign_prefix) && space && (t = term)
 
       return nil unless s
 

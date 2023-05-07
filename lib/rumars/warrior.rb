@@ -37,7 +37,7 @@ module RuMARS
 
     def parse(redcode, settings, logger)
       begin
-        @program = Parser.new(settings, logger).preprocess_and_parse(redcode)
+        @program = Parser.new(settings, logger, @file_name).preprocess_and_parse(redcode)
 
         if @program.size.zero?
           @program = nil
