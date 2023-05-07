@@ -81,7 +81,7 @@ module RuMARS
 
     def flatten
       lines = []
-      lines << "#{@loop_var_name || ''} FOR #{@expression_str}"
+      lines << +"#{@loop_var_name || ''} FOR #{@expression_str}"
       @lines.each do |line|
         if line.respond_to?(:flatten)
           lines += line.flatten
