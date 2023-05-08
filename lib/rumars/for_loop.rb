@@ -16,15 +16,20 @@ module RuMARS
   # into the parsing process again. During unroll, the loop variable name
   # is replaced by the current loop counter.
   class ForLoop
+    attr_reader :line_no
+
     # @param [String] expression_str an expression that can be resolved to
     #        an integer number representing the loop repeat count
     # @param [String] loop_var_name a String that is replaced with
     #        the current loop index + 1 when found in the form of
     #        &<loop_var_name>.
-    def initialize(constants, expression_str, loop_var_name = nil)
+    def initialize(constants, expression_str, logger, file_name, line_no, loop_var_name = nil)
       @constants = constants
       @expression_str = expression_str
       @loop_var_name = loop_var_name
+      @logger = logger
+      @file_name = file_name
+      @line_no = line_no
 
       # This can be ordinary lines (String) or nested loops (ForLoop) entries.
       @lines = []
@@ -74,6 +79,21 @@ module RuMARS
       lines
     end
 
+    def flatten
+      lines = []
+      lines << +"#{@loop_var_name || ''} FOR #{@expression_str}"
+      @lines.each do |line|
+        if line.respond_to?(:flatten)
+          lines += line.flatten
+        else
+          lines << line
+        end
+      end
+      lines << +'ROF'
+
+      lines
+    end
+
     private
 
     def replace_loop_var_name_with_index(text, loop_var_name, counter)
@@ -90,10 +110,14 @@ module RuMARS
         str = replace_loop_var_name_with_index(str, name, value)
       end
 
-      parser = Parser.new({})
+      parser = Parser.new({}, @logger, @file_name)
       expression = parser.parse(str, :expr)
 
-      expression.eval(@constants)
+      begin
+        expression.eval(@constants)
+      rescue Expression::ExpressionError => e
+        raise Parser::ParseError.new(parser, "Error in FOR expression: #{e.message}", @line_no)
+      end
     end
   end
 end
