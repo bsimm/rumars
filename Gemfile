@@ -9,5 +9,3 @@ gem "rake", "~> 13.0"
 
 gem "rspec", "~> 3.0"
 
-
-gem "rainbow", "~> 3.1"
