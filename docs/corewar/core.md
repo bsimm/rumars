@@ -31,7 +31,7 @@ the instructions they execute.
 
 Because Warriors use relative addresses, it doesn't matter where in the Core
 the warrior is loaded, all addresses will still be valid as they are relative
-to the Warrior's current position, or more specifically relative to the the
+to the Warrior's current position, or more specifically relative to the
 address of the currently [executing](execution) instruction.
 
 Another important features of Corewar addressing (and maths operations in

@@ -52,7 +52,7 @@ module TextWM
       @panels << panel
     end
 
-    # The the specified window to be the the one that the user interacts with.
+    # The specified window to be the one that the user interacts with.
     # Other windows my continue to update their content, but the user can't
     # directly interact with them.
     def focus_window(window)

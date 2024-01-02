@@ -487,7 +487,7 @@ module RuMARS
 
     # The slt instruction compares the number(s) at the addresses specified by
     # its source and destination operands. If the source number(s) are less
-    # than than the destination number(s), the next address to be executed by
+    # than the destination number(s), the next address to be executed by
     # the current process is incremented by one - in effect skipping the next
     # instruction.
     def slt(bus)
