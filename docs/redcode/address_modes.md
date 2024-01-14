@@ -71,7 +71,7 @@ jmp    0     ; <- with this instruction
 ```
 
 The `mov` instruction is about to be executed. The `B` operand is using the
-[Direct](#direct) addressing mode and is refering to the third instruction
+[Direct](#direct) addressing mode and is referring to the third instruction
 (`dat 0, 0`).
 
 The `A` operand is using the A Indirect addressing mode. The `A` number is `1`,

@@ -71,7 +71,7 @@ operands of the destination instruction are used by the specified
 
 The specified [opcode](opcodes) is applied to the entire source and destination
 instructions. The `.i` modifier is only applicable to the
-[mov](opocodes#mov-move), [seq](opcodes#skip-if-equal) and
+[mov](opcodes#mov-move), [seq](opcodes#skip-if-equal) and
 [sne](opcodes#skip-if-not-equal) opcodes.  Other opcodes tend to default to the
 behaviour of the [.f](modifiers#f) modifier.
 

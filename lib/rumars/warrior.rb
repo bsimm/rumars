@@ -131,7 +131,7 @@ module RuMARS
       raise ArgumentError, 'Task list must be an Array' unless tasks.respond_to?(:each)
 
       tasks.each do |task|
-        raise ArgumentError, 'Task list must contain only Interger addresses' unless task.is_a?(Integer)
+        raise ArgumentError, 'Task list must contain only Integer addresses' unless task.is_a?(Integer)
       end
 
       if @task_queue.length > @max_tasks - 2

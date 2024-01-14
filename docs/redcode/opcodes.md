@@ -243,7 +243,7 @@ number(s) at the destination instruction are decremented. One common use of
 this opcode is to create the equivalent of a simple `for` loop in higher level
 languages.
 
-Unlike the `jmn` intruction, the `djn` instruction **will** perform the jump if
+Unlike the `jmn` instruction, the `djn` instruction **will** perform the jump if
 **either** operand is zero when using the [.f](modifiers#f), [.x](modifiers#x)
 and [.i](modifiers#i) modifiers.
 
@@ -292,7 +292,7 @@ The default modifier for the 'sne' opcode is [.i](modifiers#i).
 
 The `slt` instruction compares the number(s) at the addresses specified by its
 source and destination [operands](operands). If the source number(s) are less
-than than the destination number(s), the next address to be executed by the
+than the destination number(s), the next address to be executed by the
 current process is incremented by one - in effect
 skipping the next instruction.
 

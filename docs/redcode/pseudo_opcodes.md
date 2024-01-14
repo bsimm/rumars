@@ -264,7 +264,7 @@ dat.f $1, $2
 
 A [label](labels) can be declared in front of the FOR block. Referencing the
 label within the FOR block will result in a different number being emitted for
-each sucessive instruction as the parser outputs the contents of the FOR block
+each successive instruction as the parser outputs the contents of the FOR block
 and each instruction gets further away from the label declaration.  This is
 demonstrated below:
 
