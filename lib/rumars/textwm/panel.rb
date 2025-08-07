@@ -16,9 +16,9 @@ module TextWM
       @textwm.register_panel(self)
       @buttons = []
 
-      @accent_color = :red
-      @text_color = :black
-      @background_color = :white
+      @accent_color = :brightyellow
+      @text_color = :brightwhite
+      @background_color = :black
     end
 
     def add_button(key, label, &callback)

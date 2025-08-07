@@ -21,8 +21,8 @@ module RuMARS
       @round = 0
       @cycle = 0
 
-      @text_color = :white
-      @background_color = :blue
+      @text_color = :brightwhite
+      @background_color = :black
     end
 
     def update

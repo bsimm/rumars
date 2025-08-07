@@ -31,14 +31,14 @@ module TextWM
 
       @vertical_scrollbar = nil
 
-      @active_frame_fg_color = :white
-      @active_frame_bg_color = :blue
-      @passive_frame_fg_color = :white
-      @passive_frame_bg_color = :blue
+      @active_frame_fg_color = :brightcyan
+      @active_frame_bg_color = :black
+      @passive_frame_fg_color = :cyan
+      @passive_frame_bg_color = :black
       @active_window_title_fg_color = :black
-      @active_window_title_bg_color = :white
-      @passive_window_title_fg_color = :white
-      @passive_window_title_bg_color = :blue
+      @active_window_title_bg_color = :brightcyan
+      @passive_window_title_fg_color = :brightwhite
+      @passive_window_title_bg_color = :black
     end
 
     # @param col [Integer]

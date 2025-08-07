@@ -24,9 +24,9 @@ module RuMARS
 
       vertical_scrollbar.enable(true)
 
-      @text_color = :white
-      @background_color = :blue
-      @pc_color = :white
+      @text_color = :brightwhite
+      @background_color = :black
+      @pc_color = :brightyellow
     end
 
     def resize(col, row, width, height)
