@@ -80,6 +80,10 @@ module RuMARS
           @settings[:trace_file] = str
         end
 
+        p.on('--auto-load', '-a', 'Automatically load first 2 .red files from project root') do
+          @settings[:auto_load] = true
+        end
+
         p.on('-h', '--help', 'Print this help') do
           puts p
           exit

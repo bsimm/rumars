@@ -54,7 +54,8 @@ module RuMARS
         1, # rounds: 1
         'ui', # start user interface
         nil, # coredump_file
-        nil # trace_file
+        nil, # trace_file
+        false # auto_load: false
       )
       # Process the commandline arguments to adjust configuration options.
       @files = CommandlineArgumentsParser.new(@settings).parse(argv)
@@ -98,6 +99,11 @@ module RuMARS
           @console_window.current_warrior = load_warrior(file_name)
         end
 
+        # Auto-load warriors from project root if flag is set
+        if @settings[:auto_load] && @files.empty?
+          auto_load_warriors
+        end
+
         @textwm.event_loop
       ensure
         $stdout = old_stdout
@@ -106,6 +112,11 @@ module RuMARS
 
     def assemble_files(stdout)
       @log_window = stdout
+
+      # Auto-load warriors from project root if flag is set and no files specified
+      if @settings[:auto_load] && @files.empty?
+        auto_load_warriors_for_non_ui
+      end
 
       @files.each do |file_name|
         return false unless load_warrior(file_name)
@@ -278,6 +289,46 @@ module RuMARS
       end
     end
 
+    def auto_load_warriors
+      # Find all .red files in the project root directory
+      root_dir = File.expand_path('.')
+      red_files = Dir.glob(File.join(root_dir, '*.red'))
+      
+      if red_files.empty?
+        puts 'No .red files found in project root for auto-loading'
+        return
+      end
+
+      # Load first 2 .red files found
+      loaded_count = 0
+      red_files.first(2).each do |file_name|
+        puts "Auto-loading warrior: #{File.basename(file_name)}"
+        @console_window.current_warrior = load_warrior(file_name)
+        loaded_count += 1
+      end
+
+      puts "Auto-loaded #{loaded_count} warrior(s) from project root"
+    end
+
+    def auto_load_warriors_for_non_ui
+      # Find all .red files in the project root directory and add to @files
+      root_dir = File.expand_path('.')
+      red_files = Dir.glob(File.join(root_dir, '*.red'))
+      
+      if red_files.empty?
+        puts 'No .red files found in project root for auto-loading'
+        return
+      end
+
+      # Add first 2 .red files to @files array
+      red_files.first(2).each do |file_name|
+        puts "Auto-loading warrior: #{File.basename(file_name)}"
+        @files << file_name
+      end
+
+      puts "Auto-loaded #{@files.length} warrior file(s) from project root"
+    end
+
     def setup_windows
       # +-vsplits1----------------------------+
       # |+-hsplits1--------------------------+|
@@ -326,13 +377,13 @@ module RuMARS
 
     def setup_panel
       panel = TextWM::Panel.new(@textwm)
-      panel.add_button('h', 'Help') { HelpBrowser.new(@textwm).help_window }
-      panel.add_button('p', 'PrevWin') { @textwm.focus_window(@textwm.prev_window) }
-      panel.add_button('n', 'NextWin') { @textwm.focus_window(@textwm.next_window) }
-      panel.add_button('c', 'CoreView') { toggle_core_view }
+      panel.add_button('?', 'Help') { HelpBrowser.new(@textwm).help_window }
+      panel.add_button('[', 'PrevWin') { @textwm.focus_window(@textwm.prev_window) }
+      panel.add_button(']', 'NextWin') { @textwm.focus_window(@textwm.next_window) }
+      panel.add_button('v', 'CoreView') { toggle_core_view }
       panel.add_button('w', 'Warriors') { toggle_warriors_window }
       panel.add_button('r', 'Restart') { @console_window.restart }
-      panel.add_button('b', 'Brkpt') { @console_window.toggle_breakpoint }
+      panel.add_button('t', 'Brkpt') { @console_window.toggle_breakpoint }
       panel.add_button('s', 'Step') { @console_window.step }
       panel.add_button('Return', 'Run') { @console_window.run }
       panel.add_button('Escape', nil) { @textwm.focus_window(@console_window) }
