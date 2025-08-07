@@ -326,15 +326,15 @@ module RuMARS
 
     def setup_panel
       panel = TextWM::Panel.new(@textwm)
-      panel.add_button('F1', 'Help') { HelpBrowser.new(@textwm).help_window }
-      panel.add_button('F2', 'PrevWin') { @textwm.focus_window(@textwm.prev_window) }
-      panel.add_button('F3', 'NextWin') { @textwm.focus_window(@textwm.next_window) }
-      panel.add_button('F4', 'CoreView') { toggle_core_view }
-      panel.add_button('F5', 'Warriors') { toggle_warriors_window }
-      panel.add_button('F6', 'Restart') { @console_window.restart }
-      panel.add_button('F7', 'Brkpt') { @console_window.toggle_breakpoint }
-      panel.add_button('F8', 'Step') { @console_window.step }
-      panel.add_button('F9', 'Run') { @console_window.run }
+      panel.add_button('h', 'Help') { HelpBrowser.new(@textwm).help_window }
+      panel.add_button('p', 'PrevWin') { @textwm.focus_window(@textwm.prev_window) }
+      panel.add_button('n', 'NextWin') { @textwm.focus_window(@textwm.next_window) }
+      panel.add_button('c', 'CoreView') { toggle_core_view }
+      panel.add_button('w', 'Warriors') { toggle_warriors_window }
+      panel.add_button('r', 'Restart') { @console_window.restart }
+      panel.add_button('b', 'Brkpt') { @console_window.toggle_breakpoint }
+      panel.add_button('s', 'Step') { @console_window.step }
+      panel.add_button('Return', 'Run') { @console_window.run }
       panel.add_button('Escape', nil) { @textwm.focus_window(@console_window) }
 
       panel
